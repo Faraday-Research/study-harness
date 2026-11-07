@@ -1,0 +1,44 @@
+{
+  "name": "study-harness",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "tsx --env-file=.env src/cli.ts --theme ../dist-theme/theme.css --fonts ../dist-theme/fonts.css",
+    "prebuild": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "tsc && node scripts/copy-skills.mjs",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/cli.js",
+    "test": "vitest run",
+    "try-search": "tsx --env-file=.env scripts/try-search.ts",
+    "preview:interactive": "tsx scripts/preview-interactive.ts --theme ../dist-theme/theme.css --fonts ../dist-theme/fonts.css"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.4.0",
+    "openai": "^7.50.0",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  },
+  "types": "dist/index.d.ts",
+  "bin": {
+    "harness": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ]
+}

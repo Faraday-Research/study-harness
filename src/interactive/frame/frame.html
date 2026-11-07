@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Nothing may load from the network: scripts, styles and fonts are all inline. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:"
+    />
+    <title>{{TITLE}}</title>
+    <style>
+/* ---- Brand fonts (data: URIs) ---- */
+/*{{FONTS_CSS}}*/
+    </style>
+    <style>
+/* ---- Brand theme: design tokens, light & dark ---- */
+/*{{THEME_CSS}}*/
+    </style>
+    <style>
+/* ---- Frame ---- */
+/*{{FRAME_CSS}}*/
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+// ---- The lesson (topic-specific part) ----
+// What the lesson is built on, from the harness: { exampleKind: 'everyday' | 'real-world' | null }
+window.__LESSON_CONTEXT__ = /*{{CONTEXT_JSON}}*/ null;
+window.__LESSON__ = /*{{LESSON_JS}}*/ undefined;
+    </script>
+    <script>
+// ---- Frame engine ----
+/*{{ENGINE_JS}}*/
+    </script>
+  </body>
+</html>
