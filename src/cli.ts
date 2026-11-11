@@ -3,13 +3,22 @@
  * Terminal app built on the public harness API — the same way an Electron
  * (or any) app integrates: createHarness(config) → harness.send(...) / harness.research(...).
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
 import {
   createHarness,
+  EDU_PIPELINE_NAME,
+  EDU_STEPS,
+  eduFiles,
+  readEduOutputs,
+  slugify,
   listProviders,
+  type EduEvent,
+  type EduInput,
+  type EduOutputs,
+  type EduStepRecord,
   type Harness,
   type HarnessConfig,
   type HarnessEvent,
@@ -212,6 +221,112 @@ async function runSimulate(args: string, signal: AbortSignal) {
   reportSimulation(sim, lastResearch.topic);
 }
 
+// ---- The edu-v2 pipeline: /edu-v2-adapt-teach-platform ----
+
+/** "Course > Chapter > 2" → a position. */
+function parsePosition(text: string | undefined): EduInput["position"] | undefined {
+  if (!text?.trim()) return undefined;
+  const [course = "", chapter = "", n] = text.split(">").map((p) => p.trim());
+  const num = Number(n);
+  return { course, chapter, ...(Number.isInteger(num) && num > 0 ? { n: num } : {}) };
+}
+
+function printEduEvent(e: EduEvent) {
+  if (e.type === "step_start") console.log(dim(`${e.step} · ${e.skill}…`));
+  else if (e.type === "step_resumed") console.log(dim(`${e.step} · kept from the earlier run`));
+  else if (e.type === "step_retry") console.log(dim(`  connection problem, retrying (${e.retry}): ${e.message.slice(0, 120)}`));
+  else if (e.type === "step_check") {
+    if (!e.problems.length) console.log(dim(`  checks passed${e.attempt > 1 ? " after the fix" : ""}`));
+    else {
+      console.log(dim(`  checks found ${e.problems.length} problem${e.problems.length === 1 ? "" : "s"}${e.attempt === 1 ? "; asking for a fix…" : ""}`));
+      for (const p of e.problems) console.log(dim(`    [${p.severity}] ${p.message.split("\n")[0]}`));
+    }
+  } else if (e.type === "tool_start") {
+    const input = e.call.input as { query?: string; expressions?: string[] };
+    console.log(dim(`  → ${e.call.name === "web_search" ? `searching: ${input.query}` : `${e.call.name}: ${JSON.stringify(input.expressions ?? input)}`}`));
+  }
+}
+
+/** Writes each finished step's file and a line in run-log.md, so a stopped run can be resumed. */
+function saveEduStep(dir: string, record: EduStepRecord, outputs: EduOutputs) {
+  const files = eduFiles(outputs);
+  if (record.status === "ok" || record.status === "resumed") {
+    writeFileSync(join(dir, record.file), files[record.file] ?? "");
+    if (record.step === "page" && files["index.html"]) writeFileSync(join(dir, "index.html"), files["index.html"]);
+  }
+  if (record.status === "resumed") return;
+  const problems = record.problems.length ? ` · ${record.problems.length} left: ${record.problems.map((p) => p.message.split("\n")[0]).join(" | ")}` : "";
+  appendFileSync(
+    join(dir, "run-log.md"),
+    `- ${new Date().toISOString()} · ${record.step} · ${record.skill} · ${record.file} · ${record.status}${record.attempts > 1 ? " after fix" : ""}${problems}\n`,
+  );
+}
+
+/**
+ * `/edu-v2-adapt-teach-platform <topic> [| hs|ug] [| Course > Chapter > n] [| note]`
+ * `/edu-v2-adapt-teach-platform --resume out/edu-v2/<slug>`
+ */
+async function runEdu(args: string, signal: AbortSignal) {
+  let input: EduInput;
+  let dir: string;
+  let resume: EduOutputs | undefined;
+
+  const resumeDir = /^\s*--resume\s+(.+)$/.exec(args)?.[1]?.trim();
+  if (resumeDir) {
+    dir = resolve(resumeDir);
+    try {
+      input = JSON.parse(readFileSync(join(dir, "input.json"), "utf8")) as EduInput;
+    } catch {
+      return console.log(`Couldn't read ${join(dir, "input.json")}. Is that a folder from an earlier run?`);
+    }
+    const files: Record<string, string> = {};
+    for (const step of EDU_STEPS) {
+      const file = join(dir, step.file);
+      if (existsSync(file)) files[step.file] = readFileSync(file, "utf8");
+    }
+    resume = readEduOutputs(files);
+    console.log(dim(`resuming "${input.topic}": ${Object.keys(resume).length} step${Object.keys(resume).length === 1 ? "" : "s"} already done`));
+  } else {
+    const [topic = "", trackText = "", positionText, ...rest] = args.split("|").map((p) => p.trim());
+    if (!topic) return console.log(`Usage: /${EDU_PIPELINE_NAME} <topic> [| hs|ug] [| Course > Chapter > n] [| note]`);
+    const track = trackText === "ug" ? "ug" : "hs";
+    if (trackText && trackText !== "hs" && trackText !== "ug") console.log(dim(`track "${trackText}" isn't hs or ug; using hs`));
+    const position = parsePosition(positionText);
+    const note = rest.join("|").trim();
+    input = { topic, track, ...(position ? { position } : {}), ...(note ? { note } : {}) };
+    dir = resolve("out", "edu-v2", slugify(topic));
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "input.json"), JSON.stringify(input, null, 2));
+    writeFileSync(join(dir, "run-log.md"), `# ${topic} (${track})\n\n`);
+    if (!position) console.log(dim("no position given: treating it as artifact 1 of an unnamed chapter"));
+  }
+
+  const res = await harness.edu(input, {
+    signal,
+    onEvent: printEduEvent,
+    onStepDone: (record, outputs) => saveEduStep(dir, record, outputs),
+    ...(resume ? { resume } : {}),
+  });
+
+  console.log(`\nfolder: ${dir}`);
+  if (res.status === "ok") {
+    console.log(`page: ${join(dir, "index.html")}`);
+    const warnings = res.steps.flatMap((s) => s.problems.map((p) => `${s.step}: ${p.message.split("\n")[0]}`));
+    for (const w of warnings) console.log(dim(`  warning · ${w}`));
+  } else {
+    console.log(`Stopped at step "${res.failedStep}": ${res.message}`);
+    for (const p of res.steps.at(-1)?.problems ?? []) console.log(dim(`  [${p.severity}] ${p.message}`));
+    console.log(dim(`fix and continue with: /${EDU_PIPELINE_NAME} --resume ${dir}`));
+  }
+  const brief = res.outputs.brief;
+  if (brief) {
+    const verified = brief.misconceptions.filter((m) => m.status === "verified").length;
+    console.log(dim(`relationship: ${brief.relationship}`));
+    console.log(dim(`misconceptions verified: ${verified} of ${brief.misconceptions.length} · open gaps: ${brief.open_gaps.join("; ") || "none"}`));
+  }
+  console.log(dim(`searches returned ${res.searchedUrls.length} URLs · ${formatUsage(res.usage)}`));
+}
+
 function dim(s: string) {
   return `\x1b[2m${s}\x1b[0m`;
 }
@@ -228,6 +343,7 @@ const { provider, model, maxTurns } = harness.info();
 console.log(dim(`provider: ${provider} · model: ${model} · max turns: ${maxTurns}`));
 console.log(dim(`skills: ${harness.skills().map((s) => s.name).join(", ") || "none"}`));
 console.log(dim(`commands: /research <topic> [| description]  /generate <topic> [| description]  /simulate [example id]`));
+console.log(dim(`          /${EDU_PIPELINE_NAME} <topic> [| hs|ug] [| Course > Chapter > n] [| note]   (--resume <folder>)`));
 console.log(dim(`          /load <saved report>  /model <provider[:model]>  /skills  /reset  /exit`));
 console.log(dim(`Ctrl+C stops a reply`));
 console.log(dim(`providers: ${listProviders().join(", ")}`));
@@ -261,9 +377,10 @@ for await (const raw of rl) {
   } else if (line === "/reset") {
     harness.reset(SESSION);
     console.log(dim("conversation cleared"));
-  } else if (/^\/(research|generate|simulate)(\s|$)/.test(line)) {
+  } else if (/^\/(research|generate|simulate|edu-v2-adapt-teach-platform)(\s|$)/.test(line)) {
     const [command] = line.split(/\s/, 1) as [string];
-    const run = command === "/research" ? runResearch : command === "/generate" ? runGenerate : runSimulate;
+    const run =
+      command === "/research" ? runResearch : command === "/generate" ? runGenerate : command === "/simulate" ? runSimulate : runEdu;
     const controller = new AbortController();
     stop = () => controller.abort(new Error("Cancelled"));
     try {

@@ -1,3 +1,4 @@
+import { createEduPipeline, type EduInput, type EduOptions, type EduResult } from "./eduPipeline.js";
 import { createEngine, type Engine, type EngineEvent } from "./engine.js";
 import { createProvider, type ProviderOptions } from "./providers/registry.js";
 import { createResearchPipeline, type ResearchInput, type ResearchOptions, type ResearchResult } from "./research.js";
@@ -105,6 +106,13 @@ export interface Harness {
    * the research result is still returned.
    */
   generate(input: ResearchInput, options?: GenerateOptions): Promise<GenerateResult>;
+  /**
+   * The edu-v2-adapt-teach-platform pipeline: build one learn-by-doing concept page from a topic by
+   * running the edu-v2 skills in order (research, plan, story arc, cast, scene, demo, copy, chapter
+   * stories, page). Each step's output is checked before the next one starts; the run stops at a
+   * step whose output still fails after one fix. Pass `options.resume` to continue a stopped run.
+   */
+  edu(input: EduInput, options?: EduOptions): Promise<EduResult>;
   /** Stop the in-flight run for a session. Returns false if nothing was running. */
   cancel(sessionId: string): boolean;
   /** Forget a conversation. */
@@ -164,6 +172,11 @@ export function createHarness(config: HarnessConfig): Harness {
     ? createProvider(config.simulation.model, { apiKey: config.simulation.apiKey, baseURL: config.simulation.baseURL })
     : null;
   const simulate = createSimulationPipeline({ getProvider: () => simulationProvider ?? provider });
+  const edu = createEduPipeline({
+    getProvider: () => provider,
+    getDesignProvider: () => simulationProvider ?? provider,
+    maxTurns,
+  });
 
   async function generate(input: ResearchInput, options: GenerateOptions = {}): Promise<GenerateResult> {
     const { signal, theme, testLesson, onCheck } = options;
@@ -240,6 +253,7 @@ export function createHarness(config: HarnessConfig): Harness {
     research,
     simulate,
     generate,
+    edu,
 
     cancel(sessionId) {
       const running = sessions.get(sessionId)?.running;

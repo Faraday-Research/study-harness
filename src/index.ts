@@ -18,6 +18,22 @@ export {
   type GenerateStage,
 } from "./harness.js";
 export type { ResearchInput, ResearchOptions, ResearchResult } from "./research.js";
+export {
+  EDU_PIPELINE_NAME,
+  EDU_STEPS,
+  eduFiles,
+  readEduOutputs,
+  slugify,
+  type EduEvent,
+  type EduInput,
+  type EduOptions,
+  type EduOutputs,
+  type EduProblem,
+  type EduResult,
+  type EduStepId,
+  type EduStepRecord,
+  type EduTrack,
+} from "./eduPipeline.js";
 export type { ResearchReport } from "./researchReport.js";
 export type {
   InteractiveTheme,
