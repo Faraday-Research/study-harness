@@ -9,6 +9,7 @@
  *   description: One line about what the skill does.
  *   tools: web_search             (one name, a comma-separated list, or a YAML list)
  *   max_output_tokens: 8000       (optional)
+ *   metadata: { version: "2" }    (optional, free-form; kept as written)
  *   ---
  *   The instructions, used word for word...
  *
@@ -30,6 +31,8 @@ export interface SkillDefinition {
   /** Names of the tools this skill may use. */
   tools: string[];
   maxOutputTokens?: number;
+  /** The header's free-form `metadata`, e.g. the skill's version. */
+  metadata?: Record<string, unknown>;
   instructions: string;
 }
 
@@ -46,6 +49,7 @@ const headerSchema = z.strictObject({
   description: z.string().trim().min(1),
   tools: z.union([z.string(), z.array(z.string())]).optional(),
   max_output_tokens: z.number().int().positive().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---[^\S\r\n]*(?:\r?\n|$)([\s\S]*)$/;
@@ -81,6 +85,7 @@ export function parseSkill(text: string, source = "SKILL.md"): SkillDefinition {
     description: header.description,
     tools,
     ...(header.max_output_tokens !== undefined ? { maxOutputTokens: header.max_output_tokens } : {}),
+    ...(header.metadata !== undefined ? { metadata: header.metadata } : {}),
     instructions,
   };
 }

@@ -4,7 +4,7 @@
  * (or any) app integrates: createHarness(config) → harness.send(...) / harness.research(...).
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { basename, extname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
 import {
@@ -12,6 +12,10 @@ import {
   EDU_PIPELINE_NAME,
   EDU_STEPS,
   eduFiles,
+  fileCache,
+  saveLessons,
+  type LessonsEvent,
+  type LessonsSource,
   readEduOutputs,
   slugify,
   listProviders,
@@ -266,6 +270,51 @@ function saveEduStep(dir: string, record: EduStepRecord, outputs: EduOutputs) {
  * `/edu-v2-adapt-teach-platform <topic> [| hs|ug] [| Course > Chapter > n] [| note]`
  * `/edu-v2-adapt-teach-platform --resume out/edu-v2/<slug>`
  */
+/**
+ * `/lessons <book.pdf | book.md> [| title] [| --no-prerequisites]`
+ * Cuts a textbook into lessons and topics with prerequisites. A PDF is read with Mistral OCR
+ * (MISTRAL_API_KEY); a .md file must have `<!--- Page N --->` markers. Answers and OCR are cached
+ * in out/lessons/.cache, so running the same book again is free.
+ */
+async function runLessons(args: string, signal: AbortSignal) {
+  const [path = "", ...rest] = args.split("|").map((p) => p.trim());
+  if (!path) return console.log("Usage: /lessons <book.pdf | book.md> [| title] [| --no-prerequisites]");
+  const prerequisites = !rest.includes("--no-prerequisites");
+  const title = rest.find((p) => p && p !== "--no-prerequisites");
+  const file = resolve(path);
+  const bookId = slugify(basename(file, extname(file)));
+
+  let source: LessonsSource;
+  if (extname(file).toLowerCase() === ".pdf") {
+    const mistralApiKey = process.env.MISTRAL_API_KEY;
+    if (!mistralApiKey) return console.log("Set MISTRAL_API_KEY (in harness/.env) to read PDFs.");
+    source = { pdf: new Uint8Array(readFileSync(file)), mistralApiKey };
+  } else {
+    source = { markdown: readFileSync(file, "utf8") };
+  }
+
+  const res = await harness.lessons(
+    { source, book: { id: bookId, ...(title ? { title } : {}), properties: { fileName: basename(file) } } },
+    { signal, cache: fileCache(resolve("out", "lessons", ".cache")), planner: { prerequisites }, onEvent: printLessonsEvent },
+  );
+  const dir = resolve("out", "lessons", bookId);
+  const paths = await saveLessons(dir, res);
+
+  const { plan } = res;
+  console.log(`\n${plan.lessons.length} lessons · ${plan.topics.length} topics` + (plan.prerequisites ? ` · ${plan.prerequisites.topics.length} prerequisite links` : ""));
+  for (const lesson of plan.lessons) console.log(`  ${lesson.id} p.${lesson.startPage}–${lesson.endPage} · ${lesson.title} (${lesson.topicIds.length} topics)`);
+  for (const w of plan.warnings) console.log(dim(`  warning · ${w}`));
+  console.log(dim(`tasks: ${res.tasks.asked} asked, ${res.tasks.cached} from cache · ${formatUsage(res.usage)}`));
+  console.log(`plan: ${paths.plan}\ncypher: ${paths.cypher}`);
+}
+
+function printLessonsEvent(e: LessonsEvent) {
+  if (e.type === "ocr_start") console.log(dim(e.cached ? "OCR · from cache" : "OCR · reading the PDF with Mistral…"));
+  else if (e.type === "ocr_done") console.log(dim(`  ${e.pages} pages read${e.failedRanges ? ` · ${e.failedRanges} ranges failed` : ""}`));
+  else if (e.type === "task_start") console.log(dim(`${e.label}${e.cached ? " · from cache" : "…"}`));
+  else if (e.type === "task_retry") console.log(dim(`  ${e.reason === "transient" ? "connection problem" : "unusable answer"}, trying again (${e.attempt}): ${e.message.split("\n")[0]!.slice(0, 160)}`));
+}
+
 async function runEdu(args: string, signal: AbortSignal) {
   let input: EduInput;
   let dir: string;
@@ -344,6 +393,7 @@ console.log(dim(`provider: ${provider} · model: ${model} · max turns: ${maxTur
 console.log(dim(`skills: ${harness.skills().map((s) => s.name).join(", ") || "none"}`));
 console.log(dim(`commands: /research <topic> [| description]  /generate <topic> [| description]  /simulate [example id]`));
 console.log(dim(`          /${EDU_PIPELINE_NAME} <topic> [| hs|ug] [| Course > Chapter > n] [| note]   (--resume <folder>)`));
+console.log(dim(`          /lessons <book.pdf | book.md> [| title] [| --no-prerequisites]`));
 console.log(dim(`          /load <saved report>  /model <provider[:model]>  /skills  /reset  /exit`));
 console.log(dim(`Ctrl+C stops a reply`));
 console.log(dim(`providers: ${listProviders().join(", ")}`));
@@ -377,10 +427,18 @@ for await (const raw of rl) {
   } else if (line === "/reset") {
     harness.reset(SESSION);
     console.log(dim("conversation cleared"));
-  } else if (/^\/(research|generate|simulate|edu-v2-adapt-teach-platform)(\s|$)/.test(line)) {
+  } else if (/^\/(research|generate|simulate|lessons|edu-v2-adapt-teach-platform)(\s|$)/.test(line)) {
     const [command] = line.split(/\s/, 1) as [string];
     const run =
-      command === "/research" ? runResearch : command === "/generate" ? runGenerate : command === "/simulate" ? runSimulate : runEdu;
+      command === "/research"
+        ? runResearch
+        : command === "/generate"
+          ? runGenerate
+          : command === "/simulate"
+            ? runSimulate
+            : command === "/lessons"
+              ? runLessons
+              : runEdu;
     const controller = new AbortController();
     stop = () => controller.abort(new Error("Cancelled"));
     try {

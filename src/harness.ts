@@ -1,5 +1,6 @@
 import { createEduPipeline, type EduInput, type EduOptions, type EduResult } from "./eduPipeline.js";
 import { createEngine, type Engine, type EngineEvent } from "./engine.js";
+import { createLessonsPipeline, type LessonsInput, type LessonsOptions, type LessonsResult } from "./lessons.js";
 import { createProvider, type ProviderOptions } from "./providers/registry.js";
 import { createResearchPipeline, type ResearchInput, type ResearchOptions, type ResearchResult } from "./research.js";
 import {
@@ -113,6 +114,13 @@ export interface Harness {
    * step whose output still fails after one fix. Pass `options.resume` to continue a stopped run.
    */
   edu(input: EduInput, options?: EduOptions): Promise<EduResult>;
+  /**
+   * Turn a textbook (a PDF, read with Mistral OCR, or page-marked markdown) into lessons made of
+   * topics, with prerequisites, using doc-extraction-util. The skills find-topics, group-lessons
+   * and find-prerequisites answer its tasks one at a time on the main model. Pass a cache to
+   * replay earlier answers; saveLessons() writes the plan, graph and Cypher.
+   */
+  lessons(input: LessonsInput, options?: LessonsOptions): Promise<LessonsResult>;
   /** Stop the in-flight run for a session. Returns false if nothing was running. */
   cancel(sessionId: string): boolean;
   /** Forget a conversation. */
@@ -177,6 +185,7 @@ export function createHarness(config: HarnessConfig): Harness {
     getDesignProvider: () => simulationProvider ?? provider,
     maxTurns,
   });
+  const lessons = createLessonsPipeline({ getProvider: () => provider });
 
   async function generate(input: ResearchInput, options: GenerateOptions = {}): Promise<GenerateResult> {
     const { signal, theme, testLesson, onCheck } = options;
@@ -254,6 +263,7 @@ export function createHarness(config: HarnessConfig): Harness {
     simulate,
     generate,
     edu,
+    lessons,
 
     cancel(sessionId) {
       const running = sessions.get(sessionId)?.running;

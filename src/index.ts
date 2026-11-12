@@ -35,6 +35,23 @@ export {
   type EduTrack,
 } from "./eduPipeline.js";
 export type { ResearchReport } from "./researchReport.js";
+export {
+  answerKey,
+  fileCache,
+  LESSONS_FILES,
+  LessonsTaskError,
+  saveLessons,
+  type LessonPlan,
+  type LessonsCache,
+  type LessonsEvent,
+  type LessonsInput,
+  type LessonsOptions,
+  type LessonsPlannerOptions,
+  type LessonsResult,
+  type LessonsSource,
+  type PlanProgress,
+  type PropertyGraph,
+} from "./lessons.js";
 export type {
   InteractiveTheme,
   LessonCheck,
