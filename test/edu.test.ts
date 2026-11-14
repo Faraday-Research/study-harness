@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createHarness, eduFiles, readEduOutputs } from "../src/index.js";
-import { checkArc, checkDemo, checkPlan, checkSvg, type ConceptPlan } from "../src/edu/checks.js";
+import { checkArc, checkDemo, checkPage, checkPictures, checkPlan, checkSvg, readPictures, type ConceptPlan } from "../src/edu/checks.js";
 import { isTransient } from "../src/eduPipeline.js";
 import { registerProvider } from "../src/providers/registry.js";
 import { loadSkillFile, builtinSkillPath } from "../src/skills/loader.js";
@@ -67,6 +67,9 @@ describe("harness.edu (edu-v2-adapt-teach-platform)", () => {
     expect(systems[0]).toContain("# edu-v2-concept-research");
     expect(systems.at(-1)).toContain("# edu-v2-content-presentation");
     expect(systems.at(-1)).toContain("# Reference: edu-v2-layout-and-drawing");
+    // The scene and page steps both get the design skill.
+    expect(systems[ORDER.indexOf("scene") + 1]).toContain("# Reference: edu-v2-material-design");
+    expect(systems.at(-1)).toContain("# Reference: edu-v2-material-design");
     // Only research and plan get tools.
     expect(requests[0]!.tools.map((t) => t.name)).toEqual(["web_search", "calculate"]);
     expect(requests[2]!.tools.map((t) => t.name)).toEqual(["calculate"]);
@@ -78,6 +81,13 @@ describe("harness.edu (edu-v2-adapt-teach-platform)", () => {
     // The scene goes where the page left its placeholder.
     expect(res.outputs.html).toContain('<figure class="scene"><svg');
     expect(res.outputs.html).not.toContain("<!--SCENE-->");
+    // So do the hero and every Door picture.
+    expect(res.outputs.html).toContain('<figure class="hero"><svg viewBox="0 0 640 200"');
+    expect(res.outputs.html).toContain('<div class="door"><svg viewBox="0 0 240 150" role="img" aria-label="Before and after for door-2">');
+    expect(res.outputs.html).not.toMatch(/<!--(HERO|DOOR:)/);
+    const picturesMessage = requests[5]!.messages[0] as { content: string };
+    expect(picturesMessage.content).toMatch(/<task>\s*pictures\s*<\/task>/);
+    expect(picturesMessage.content).toContain("<doors>");
   });
 
   it("sends problems back once, and keeps the fixed output", async () => {
@@ -143,6 +153,7 @@ describe("edu-v2 skills", () => {
       "edu-v2-concept-demo": [],
       "edu-v2-story-and-scene": [],
       "edu-v2-content-presentation": [],
+      "edu-v2-material-design": [],
       "edu-v2-adapt-teach-platform": [],
     };
     for (const [name, expected] of Object.entries(tools)) {
@@ -152,6 +163,17 @@ describe("edu-v2 skills", () => {
 });
 
 describe("edu-v2 checks", () => {
+  it("checks the page uses the app's design tokens and Poppins only", () => {
+    expect(checkPage(fx.page, fx.copy as never).filter((p) => /token|Poppins|font|shadow/i.test(p.message))).toEqual([]);
+    const old = fx.page
+      .replace(/--color-primary:#0c817b;/, "")
+      .replace("font-family:var(--font-body)", "font-family:Georgia,serif;box-shadow:0 1px 2px #000");
+    const messages = checkPage(old, fx.copy as never).map((p) => p.message).join("\n");
+    expect(messages).toMatch(/Define the design tokens/);
+    expect(messages).toMatch(/Use Poppins only; remove Georgia, serif/);
+    expect(messages).toMatch(/No shadows/);
+  });
+
   it("catches Explorer distractors within twice the tolerance", () => {
     const plan = structuredClone(fx.plan) as unknown as ConceptPlan;
     plan.check.explorer[0]!.numeric!.distractors = [41.5];
@@ -167,6 +189,31 @@ describe("edu-v2 checks", () => {
   it("passes the fixture arc and rejects a missing beat", () => {
     expect(checkArc(fx.arc)).toEqual([]);
     expect(checkArc(fx.arc.replace(/^6 Break:.*$/m, "")).map((p) => p.message)).toContain('The arc is missing the "6 Break:" line.');
+  });
+
+  it("reads the pictures reply and checks each picture is a full illustration", () => {
+    const read = readPictures(fx.replies.scene!);
+    expect("value" in read && Object.keys(read.value.doors)).toEqual(["door-1", "door-2", "door-3"]);
+    const pictures = (read as { value: Parameters<typeof checkPictures>[0] }).value;
+    expect(checkPictures(pictures, fx.plan as never)).toEqual([]);
+
+    const sketch = { ...pictures, scene: '<svg viewBox="0 0 640 260" role="img" aria-label="A stall at the fair"><rect fill="none" stroke="var(--color-text)"/></svg>' };
+    expect(checkPictures(sketch, fx.plan as never).map((p) => p.message).join("\n")).toMatch(/only 1 shapes, so it reads as a sketch/);
+
+    const { "door-3": _, ...twoDoors } = pictures.doors;
+    expect(checkPictures({ ...pictures, doors: twoDoors }, fx.plan as never).map((p) => p.message)).toContain(
+      'Draw the picture for door-3 in <door_svg id="door-3">.',
+    );
+    expect(readPictures("<scene_svg><svg></svg></scene_svg>")).toEqual({ error: 'The reply has no <svg> inside <hero_svg>, <door_svg id="…">.' });
+  });
+
+  it("needs the page to leave a placeholder for every picture and define the illustration palette", () => {
+    expect(checkPage(fx.page, fx.copy as never, fx.plan as never).filter((p) => p.severity === "error")).toEqual([]);
+    const bad = fx.page.replace("<!--HERO-->", "").replace("<!--DOOR:door-2-->", "").replace(/--illus-skin-1:[^;]+;/, "");
+    const messages = checkPage(bad, fx.copy as never, fx.plan as never).map((p) => p.message).join("\n");
+    expect(messages).toMatch(/Write <!--HERO--> exactly once/);
+    expect(messages).toMatch(/Write <!--DOOR:door-2--> exactly once/);
+    expect(messages).toMatch(/Define the illustration palette/);
   });
 
   it("rejects an SVG that loads anything from outside", () => {

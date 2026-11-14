@@ -10,6 +10,9 @@
  * and nothing is built on a bad output. A transient error (connection, rate limit, overload)
  * retries the step up to twice. A stopped run can be resumed: pass the outputs already made.
  *
+ * The scene step draws every picture on the page (the Meet scene, the hero and one per Door) in
+ * one focused reply; the page step leaves placeholders for them and assemble() puts them in.
+ *
  * The standalone widget step (edu-v2-interactive-sim) is not part of this pipeline: the page
  * step builds its figures directly from the demo spec, as the Explainer app does.
  */
@@ -23,11 +26,13 @@ import {
   checkPage,
   checkPlan,
   checkStories,
-  checkSvg,
+  checkPictures,
   between,
   readJson,
   readPage,
-  readSvg,
+  readPictures,
+  doorPlaceholder,
+  HERO_PLACEHOLDER,
   SCENE_PLACEHOLDER,
   stripFences,
   type CastScene,
@@ -35,6 +40,7 @@ import {
   type ConceptPlan,
   type DemoSpec,
   type EduCopy,
+  type EduPictures,
   type EduProblem,
   type EduStories,
 } from "./edu/checks.js";
@@ -45,7 +51,7 @@ import { createSearchBackend } from "./tools/search/index.js";
 import { createWebSearchTool, DEFAULT_TRUSTED_DOMAINS, type WebSearchToolInstance } from "./tools/webSearch.js";
 import type { Provider, StopReason, Usage } from "./types.js";
 
-export type { EduProblem } from "./edu/checks.js";
+export type { EduPictures, EduProblem } from "./edu/checks.js";
 
 export const EDU_PIPELINE_NAME = "edu-v2-adapt-teach-platform";
 
@@ -76,13 +82,14 @@ export interface EduOutputs {
   plan?: ConceptPlan;
   arc?: string;
   cast?: CastScene;
-  scene?: string;
+  /** The drawn pictures: the Meet scene, the hero and one per Door. */
+  pictures?: EduPictures;
   demo?: DemoSpec;
   copy?: EduCopy;
   stories?: EduStories;
   /** The page as the model wrote it, with the scene placeholder. */
   page?: string;
-  /** The finished page fragment: the page with the scene SVG put in. */
+  /** The finished page fragment: the page with the pictures put in. */
   html?: string;
 }
 
@@ -94,7 +101,7 @@ export const EDU_STEPS: readonly { id: EduStepId; skill: string; file: string; o
   { id: "plan", skill: "edu-v2-concept-break-build", file: "concept-plan.json", output: "plan" },
   { id: "arc", skill: "edu-v2-story-arc", file: "story-arc.md", output: "arc" },
   { id: "cast", skill: "edu-v2-character-scene", file: "cast-scene.json", output: "cast" },
-  { id: "scene", skill: "edu-v2-layout-and-drawing", file: "scene.svg", output: "scene" },
+  { id: "scene", skill: "edu-v2-layout-and-drawing", file: "pictures.json", output: "pictures" },
   { id: "demo", skill: "edu-v2-concept-demo", file: "demo-spec.json", output: "demo" },
   { id: "copy", skill: "edu-v2-story-and-scene", file: "copy.json", output: "copy" },
   { id: "stories", skill: "edu-v2-story-and-scene", file: "stories.json", output: "stories" },
@@ -272,12 +279,16 @@ const STEPS: Record<EduStepId, StepDef> = {
   scene: {
     id: "scene",
     design: true,
-    message: (ctx) => join(tag("task", "scene"), tag("cast_scene", ctx.outputs.cast), tag("colour_map", colourMap(ctx))),
-    read: (text) => {
-      const svg = readSvg(text);
-      return svg ? { value: svg } : { error: "The reply has no <svg> inside <scene_svg>." };
-    },
-    check: (value) => checkSvg(value as string),
+    refs: ["edu-v2-material-design"],
+    message: (ctx) =>
+      join(
+        tag("task", "pictures"),
+        tag("cast_scene", ctx.outputs.cast),
+        tag("doors", ctx.outputs.plan?.doors),
+        tag("colour_map", colourMap(ctx)),
+      ),
+    read: (text) => readPictures(text),
+    check: (value, ctx) => checkPictures(value as EduPictures, ctx.outputs.plan),
   },
   demo: {
     id: "demo",
@@ -323,7 +334,7 @@ const STEPS: Record<EduStepId, StepDef> = {
   page: {
     id: "page",
     design: true,
-    refs: ["edu-v2-layout-and-drawing"],
+    refs: ["edu-v2-layout-and-drawing", "edu-v2-material-design"],
     message: (ctx) =>
       join(
         tag("concept_plan", ctx.outputs.plan),
@@ -340,7 +351,7 @@ const STEPS: Record<EduStepId, StepDef> = {
       const page = readPage(text);
       return page ? { value: page } : { error: "The reply has no <page> block." };
     },
-    check: (value, ctx) => checkPage(value as string, ctx.outputs.copy),
+    check: (value, ctx) => checkPage(value as string, ctx.outputs.copy, ctx.outputs.plan),
   },
 };
 
@@ -391,7 +402,7 @@ export function createEduPipeline({ getProvider, getDesignProvider, maxTurns, tr
         const record: EduStepRecord = { step: meta.id, skill: meta.skill, file: meta.file, status: "resumed", attempts: 0, problems: [], usage: zero() };
         steps.push(record);
         emit({ type: "step_resumed", step: meta.id });
-        if (meta.id === "page") ctx.outputs.html = assemble(resumed as string, ctx.outputs.scene);
+        if (meta.id === "page") ctx.outputs.html = assemble(resumed as string, ctx.outputs.pictures);
         await options.onStepDone?.(record, ctx.outputs);
         continue;
       }
@@ -422,7 +433,7 @@ export function createEduPipeline({ getProvider, getDesignProvider, maxTurns, tr
       steps.push(record);
       if (outcome.status === "ok") {
         (ctx.outputs as Record<string, unknown>)[meta.output] = outcome.value;
-        if (meta.id === "page") ctx.outputs.html = assemble(outcome.value as string, ctx.outputs.scene);
+        if (meta.id === "page") ctx.outputs.html = assemble(outcome.value as string, ctx.outputs.pictures);
       }
       emit({ type: "step_done", step: meta.id, record });
       await options.onStepDone?.(record, ctx.outputs);
@@ -482,9 +493,15 @@ export function createEduPipeline({ getProvider, getDesignProvider, maxTurns, tr
   }
 }
 
-/** The page with the scene SVG put where the model left the placeholder. */
-export function assemble(page: string, scene: string | undefined): string {
-  return scene ? page.replace(SCENE_PLACEHOLDER, `<figure class="scene">${scene}</figure>`) : page;
+/** The page with the drawn pictures put where the model left their placeholders. */
+export function assemble(page: string, pictures: EduPictures | undefined): string {
+  if (!pictures) return page;
+  // Replacer functions, so a "$" in an SVG is never read as a replacement pattern.
+  let html = page
+    .replace(SCENE_PLACEHOLDER, () => `<figure class="scene">${pictures.scene}</figure>`)
+    .replace(HERO_PLACEHOLDER, () => `<figure class="hero">${pictures.hero}</figure>`);
+  for (const [id, svg] of Object.entries(pictures.doors)) html = html.replace(doorPlaceholder(id), () => svg);
+  return html;
 }
 
 /** Connection drops, rate limits and overloads: worth running the step again. */

@@ -373,16 +373,31 @@ export function checkArc(arc: string): EduProblem[] {
 // ---------------------------------------------------------------------
 
 export const castSceneSchema = z.object({
-  main: z.object({ name: nonEmpty, gender: z.string().optional(), age: z.number(), hobby: nonEmpty, job: nonEmpty }),
-  guide: z.object({ name: nonEmpty, gender: z.string().optional(), manner: nonEmpty }),
-  others: z.array(z.object({ role: nonEmpty, name: nonEmpty })).optional(),
+  main: z.object({ name: nonEmpty, gender: z.string().optional(), age: z.number(), hobby: nonEmpty, job: nonEmpty, appearance: z.string().optional() }),
+  guide: z.object({ name: nonEmpty, gender: z.string().optional(), manner: nonEmpty, appearance: z.string().optional() }),
+  others: z.array(z.object({ role: nonEmpty, name: nonEmpty, appearance: z.string().optional() })).optional(),
   place: z.object({ name: nonEmpty, things: strList }),
   intro_lines: strList.min(1),
   scene_svg_brief: z.object({
     viewBox: z.string(),
-    objects: z.array(z.object({ name: nonEmpty, pos: z.string(), label: nonEmpty, label_pos: z.string().optional(), colour_token: z.string() })).min(1),
+    composition: z.string().optional(),
+    background: strList.optional(),
+    characters: z.array(z.object({ name: nonEmpty, pos: z.string(), pose: nonEmpty, expression: nonEmpty })).optional(),
+    objects: z
+      .array(
+        z.object({
+          name: nonEmpty,
+          pos: z.string(),
+          details: z.string().optional(),
+          label: nonEmpty,
+          label_pos: z.string().optional(),
+          colour_token: z.string(),
+        }),
+      )
+      .min(1),
     aria_label: nonEmpty,
   }),
+  hero_brief: z.object({ description: nonEmpty, aria_label: nonEmpty }).optional(),
 });
 export type CastScene = z.infer<typeof castSceneSchema>;
 
@@ -423,6 +438,18 @@ export function checkCast(value: unknown, arc: string | undefined, usedNames: st
   out.push(...markupProblems(cast.intro_lines, "Intro line"));
   out.push(...lineLengthProblems(cast.intro_lines.map((text, i) => ({ path: `intro_lines.${i}`, text })), "Intro lines"));
   if (cast.scene_svg_brief.viewBox.replace(/\s+/g, " ").trim() !== "0 0 640 260") out.push(warn("The scene viewBox is 0 0 640 260."));
+  const people = [cast.main, cast.guide, ...(cast.others ?? [])];
+  for (const person of people) {
+    if (!person.appearance?.trim()) out.push(warn(`Give ${person.name} an appearance (skin tone, hair, clothes, one signature item) so the pictures can draw them.`));
+  }
+  const brief = cast.scene_svg_brief;
+  if (!brief.composition?.trim()) out.push(warn("Give the scene brief a composition (where the eye goes, what is in front and behind)."));
+  if (!brief.background?.length) out.push(warn("Give the scene brief its background layers (sky, far, middle)."));
+  const drawn = new Set((brief.characters ?? []).map((c) => c.name.toLowerCase()));
+  for (const name of [cast.main.name, cast.guide.name]) {
+    if (!drawn.has(name.toLowerCase())) out.push(warn(`Put ${name} in the scene brief's characters, with a pose and an expression.`));
+  }
+  if (!cast.hero_brief) out.push(warn("Add a hero_brief: the wide opening picture of the place and the main character."));
   return out;
 }
 
@@ -433,21 +460,71 @@ export function checkCast(value: unknown, arc: string | undefined, usedNames: st
 /** Reads the SVG from a reply: the <scene_svg> block, or a bare <svg> if the tags were left out. */
 export function readSvg(text: string): string | null {
   const inner = between(text, "scene_svg") ?? text;
-  const body = stripFences(inner);
+  return svgIn(inner);
+}
+
+function svgIn(text: string): string | null {
+  const body = stripFences(text);
   const start = body.search(/<svg\b/i);
   const end = body.toLowerCase().lastIndexOf("</svg>");
   return start === -1 || end < start ? null : body.slice(start, end + 6);
 }
 
-export function checkSvg(svg: string): EduProblem[] {
+/** Every picture on the page: the Meet scene, the hero and one per Door (by door id). */
+export interface EduPictures {
+  scene: string;
+  hero: string;
+  doors: Record<string, string>;
+}
+
+/** The viewBox of each kind of picture. */
+export const PICTURE_VIEWBOX = { scene: "0 0 640 260", hero: "0 0 640 200", door: "0 0 240 150" } as const;
+/** Fewer drawn shapes than this reads as a sketch, not a flat illustration. */
+const MIN_SHAPES = { scene: 60, hero: 40, door: 14 } as const;
+
+/** Reads the pictures reply: <scene_svg>, <hero_svg> and <door_svg id="…"> blocks. */
+export function readPictures(text: string): { value: EduPictures } | { error: string } {
+  const scene = svgIn(between(text, "scene_svg") ?? "");
+  const hero = svgIn(between(text, "hero_svg") ?? "");
+  const doors: Record<string, string> = {};
+  for (const [, id, inner] of text.matchAll(/<door_svg\s+id\s*=\s*["']([^"']+)["']\s*>([\s\S]*?)<\/door_svg>/gi)) {
+    const svg = svgIn(inner!);
+    if (svg) doors[id!.trim()] = svg;
+  }
+  const missing = [!scene && "<scene_svg>", !hero && "<hero_svg>", !Object.keys(doors).length && '<door_svg id="…">'].filter(Boolean);
+  if (missing.length) return { error: `The reply has no <svg> inside ${missing.join(", ")}.` };
+  return { value: { scene: scene!, hero: hero!, doors } };
+}
+
+export function checkPictures(value: EduPictures, plan: ConceptPlan | undefined): EduProblem[] {
   const out: EduProblem[] = [];
-  if ((svg.match(/<svg\b/gi) ?? []).length !== 1) out.push(err("The scene must be one single SVG (no nested <svg>)."));
+  out.push(...checkSvg(value.scene, { name: "scene", viewBox: PICTURE_VIEWBOX.scene, minShapes: MIN_SHAPES.scene }));
+  out.push(...checkSvg(value.hero, { name: "hero", viewBox: PICTURE_VIEWBOX.hero, minShapes: MIN_SHAPES.hero }));
+  for (const [id, svg] of Object.entries(value.doors)) {
+    out.push(...checkSvg(svg, { name: `${id} picture`, viewBox: PICTURE_VIEWBOX.door, minShapes: MIN_SHAPES.door }));
+    if (/<text\b/i.test(svg)) out.push(err(`The ${id} picture has text in it; Door pictures have no text.`));
+  }
+  if (plan) {
+    for (const door of plan.doors) if (!value.doors[door.id]) out.push(err(`Draw the picture for ${door.id} in <door_svg id="${door.id}">.`));
+    const ids = new Set(plan.doors.map((d) => d.id));
+    for (const id of Object.keys(value.doors)) if (!ids.has(id)) out.push(err(`There is no door "${id}" in the plan.`));
+  }
+  return out;
+}
+
+export function checkSvg(
+  svg: string,
+  { name = "scene", viewBox: want = PICTURE_VIEWBOX.scene, minShapes = 0 }: { name?: string; viewBox?: string; minShapes?: number } = {},
+): EduProblem[] {
+  const out: EduProblem[] = [];
+  const The = name[0]!.toUpperCase() + name.slice(1);
+  if ((svg.match(/<svg\b/gi) ?? []).length !== 1) out.push(err(`The ${name} must be one single SVG (no nested <svg>).`));
   const open = /<svg\b[^>]*>/i.exec(svg)?.[0] ?? "";
-  if (!/\brole\s*=\s*["']img["']/i.test(open)) out.push(err('The <svg> needs role="img".'));
-  if (!/\baria-label\s*=\s*["'][^"']{8,}["']/i.test(open)) out.push(err("The <svg> needs an aria-label that says what is in it."));
+  if (!/\brole\s*=\s*["']img["']/i.test(open)) out.push(err(`The ${name} <svg> needs role="img".`));
+  if (!/\baria-label\s*=\s*["'][^"']{8,}["']/i.test(open)) out.push(err(`The ${name} <svg> needs an aria-label that says what is in it.`));
   const viewBox = /\bviewBox\s*=\s*["']([^"']+)["']/i.exec(open)?.[1]?.replace(/\s+/g, " ").trim();
-  if (!viewBox) out.push(err('The <svg> needs viewBox="0 0 640 260".'));
-  else if (viewBox !== "0 0 640 260") out.push(warn(`The scene viewBox is "${viewBox}"; use "0 0 640 260".`));
+  if (!viewBox) out.push(err(`The ${name} <svg> needs viewBox="${want}".`));
+  else if (viewBox !== want) out.push(warn(`The ${name} viewBox is "${viewBox}"; use "${want}".`));
   const forbidden: [RegExp, string][] = [
     [/<script\b/i, "a <script>"],
     [/<image\b/i, "an <image> (external picture)"],
@@ -457,8 +534,18 @@ export function checkSvg(svg: string): EduProblem[] {
     [/@import/i, "an @import"],
     [/\son[a-z]+\s*=/i, "an event handler attribute"],
   ];
-  for (const [re, what] of forbidden) if (re.test(svg)) out.push(err(`The scene contains ${what}; it must be self-contained.`));
-  if (/(fill|stroke)\s*[:=]\s*["']?#[0-9a-f]{3,8}\b/i.test(svg)) out.push(warn("Use colour tokens (var(--ink), var(--q-…)) instead of hex colours in the scene."));
+  for (const [re, what] of forbidden) if (re.test(svg)) out.push(err(`The ${name} contains ${what}; it must be self-contained.`));
+  if (/(fill|stroke|stop-color)\s*[:=]\s*["']?#[0-9a-f]{3,8}\b/i.test(svg)) {
+    out.push(warn(`Use colour tokens (var(--illus-…), var(--color-…), var(--q-…)) instead of hex colours in the ${name}.`));
+  }
+  if (minShapes) {
+    const shapes = (svg.match(/<(path|rect|circle|ellipse|polygon|polyline|line|use)\b/gi) ?? []).length;
+    if (shapes < minShapes) {
+      out.push(warn(`${The} has only ${shapes} shapes, so it reads as a sketch. Draw it as a detailed flat illustration (about ${minShapes} shapes or more): build the people, props and background from layered filled shapes.`));
+    }
+    const filled = (svg.match(/\bfill\s*[:=]\s*["']?var\(--illus-/gi) ?? []).length;
+    if (filled < Math.ceil(minShapes / 4)) out.push(warn(`${The} uses few illustration colours; fill shapes with the --illus-… palette instead of outlines.`));
+  }
   return out;
 }
 
@@ -646,6 +733,9 @@ export function checkStories(value: unknown, cast: CastScene | undefined, copy: 
 const APPROVED_SCRIPT_HOSTS = ["cdnjs.cloudflare.com", "cdn.jsdelivr.net", "unpkg.com"];
 const APPROVED_STYLE_HOSTS = ["fonts.googleapis.com", "fonts.gstatic.com"];
 export const SCENE_PLACEHOLDER = "<!--SCENE-->";
+export const HERO_PLACEHOLDER = "<!--HERO-->";
+/** Where a Door's picture goes, inside its card. */
+export const doorPlaceholder = (id: string) => `<!--DOOR:${id}-->`;
 
 export function readPage(text: string): string | null {
   const inner = between(text, "page");
@@ -661,7 +751,7 @@ function host(url: string): string | null {
   }
 }
 
-export function checkPage(page: string, copy: EduCopy | undefined): EduProblem[] {
+export function checkPage(page: string, copy: EduCopy | undefined, plan?: ConceptPlan): EduProblem[] {
   const out: EduProblem[] = [];
   if (/<!doctype/i.test(page) || /<\/?(html|head|body)\b/i.test(page)) out.push(err("No doctype, html, head or body tags; the page is a fragment."));
 
@@ -670,14 +760,36 @@ export function checkPage(page: string, copy: EduCopy | undefined): EduProblem[]
   else if (wordCount(title) < 2 || wordCount(title) > 4) out.push(err(`The <title> "${title}" must be two to four words.`));
   if (!/claude:viewport-fit-sides/.test(page)) out.push(warn('Add <meta name="claude:viewport-fit-sides">.'));
 
-  if (!/:root\s*\{[^}]*--paper/i.test(page) || !/--sand\s*:/i.test(page)) out.push(err("Define the Eloquent Lab colour tokens (--paper, --ink, --sand, …) on :root."));
+  if (!/:root\s*\{[^}]*--color-primary\s*:/i.test(page) || !/--color-text\s*:/i.test(page) || !/--color-background\s*:/i.test(page)) {
+    out.push(err("Define the design tokens (--color-primary, --color-text, --color-background, …) on :root."));
+  }
+  if (!/--illus-skin-1\s*:/.test(page) || !/--illus-shade\s*:/.test(page)) {
+    out.push(err("Define the illustration palette (--illus-skin-1 … --illus-light) on :root, light and dark; the drawn pictures use it."));
+  }
   if (!/prefers-color-scheme\s*:\s*dark/i.test(page)) out.push(err("Add the dark overrides in a @media (prefers-color-scheme: dark) block."));
   if (!/\[data-theme=["']?dark["']?\]/i.test(page)) out.push(warn('Repeat the dark overrides under :root[data-theme="dark"].'));
   if (!/\[hidden\]\s*\{\s*display\s*:\s*none\s*!important/i.test(page)) out.push(err("Add the global rule [hidden]{display:none!important}."));
-  if (!/Georgia/.test(page) || !/Cinzel/.test(page) || !/PT Mono/.test(page)) out.push(warn("Use the Eloquent Lab type: Georgia body, Cinzel headings, PT Mono numbers."));
+  const css = [...page.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]).join("\n");
+  if (!/Poppins/.test(css)) out.push(warn("Use Poppins (var(--font-body)) for all text."));
+  const otherFonts = [...css.matchAll(/font-family\s*:\s*([^;}]+)/gi)]
+    .flatMap((m) => m[1]!.split(","))
+    .map((f) => f.trim().replace(/^["']|["']$/g, ""))
+    .filter((f) => f && !/^(Poppins|system-ui|-apple-system|sans-serif|inherit|var\(--font-[a-z]+\))$/i.test(f));
+  if (otherFonts.length) out.push(warn(`Use Poppins only; remove ${[...new Set(otherFonts)].join(", ")}.`));
+  if (/@font-face/i.test(css) || /<link\b[^>]*fonts\.googleapis/i.test(page)) out.push(warn("Don't load fonts: the app supplies Poppins and the lesson frame blocks font downloads."));
+  if (/box-shadow\s*:\s*(?!none)/i.test(css)) out.push(warn("No shadows on the page: use borders and spacing."));
 
   const scenes = page.split(SCENE_PLACEHOLDER).length - 1;
   if (scenes !== 1) out.push(err(`Write ${SCENE_PLACEHOLDER} exactly once, where the Meet scene picture goes (found ${scenes}).`));
+  const heroes = page.split(HERO_PLACEHOLDER).length - 1;
+  if (heroes !== 1) out.push(err(`Write ${HERO_PLACEHOLDER} exactly once, where the hero picture goes (found ${heroes}).`));
+  for (const door of plan?.doors ?? []) {
+    const n = page.split(doorPlaceholder(door.id)).length - 1;
+    if (n !== 1) out.push(err(`Write ${doorPlaceholder(door.id)} exactly once, inside that Door's card (found ${n}).`));
+  }
+  if (/<svg\b/i.test(page.replace(/<script\b[\s\S]*?<\/script>/gi, "")) && /<svg\b[^>]*viewBox\s*=\s*["']0 0 (640 (170|200)|120 76|240 150)["']/i.test(page)) {
+    out.push(warn("Don't draw the hero or Door pictures on the page; write their placeholders and the harness puts the drawn pictures there."));
+  }
   for (const id of STAGE_IDS) {
     if (!new RegExp(`data-stage=["']${id}["']`).test(page)) out.push(err(`Stage ${id} is missing: add section.stage[data-stage="${id}"].`));
   }

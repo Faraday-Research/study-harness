@@ -111,22 +111,36 @@ Roles needed: main, guide
 Place needs: price board, queue, snack plates, cash tin`;
 
 export const cast = {
-  main: { name: "Kavya", gender: "female", age: 15, hobby: "cricket", job: "runs the class snack stall" },
-  guide: { name: "Mohan", gender: "male", manner: "asks questions, hands over the chalk" },
+  main: { name: "Kavya", gender: "female", age: 15, hobby: "cricket", job: "runs the class snack stall", appearance: "skin-3, black plait, teal kurta, a cricket cap" },
+  guide: { name: "Mohan", gender: "male", manner: "asks questions, hands over the chalk", appearance: "skin-4, grey hair, navy shirt, glasses" },
   others: [],
   place: { name: "a school fair", things: ["price board", "queue", "snack plates", "cash tin"] },
   intro_lines: ["This is Kavya. She runs the snack stall.", "Mohan teaches maths. He loves a good puzzle."],
   scene_svg_brief: {
     viewBox: "0 0 640 260",
-    objects: [{ name: "stall", pos: "100,80 200x120", label: "snack stall", label_pos: "100,70", colour_token: "--ink" }],
+    composition: "Kavya behind the stall on the left third, the queue leading the eye to her.",
+    background: ["pale sky", "school building", "bunting"],
+    characters: [
+      { name: "Kavya", pos: "210,230", pose: "points at the price board", expression: "puzzled" },
+      { name: "Mohan", pos: "470,230", pose: "holds a piece of chalk", expression: "smiling" },
+    ],
+    objects: [{ name: "stall", pos: "100,80 200x120", details: "striped awning, jars", label: "snack stall", label_pos: "100,70", colour_token: "--illus-wood" }],
     aria_label: "A snack stall at a school fair with a price board and a queue",
   },
+  hero_brief: { description: "The school fair seen wide, Kavya at her stall as the queue thins.", aria_label: "Kavya at her snack stall at a busy school fair" },
 };
 
-export const scene =
-  '<svg viewBox="0 0 640 260" role="img" aria-label="A snack stall at a school fair with a price board and a queue">' +
-  '<rect x="100" y="80" width="200" height="120" fill="none" stroke="var(--ink)"/>' +
-  '<text x="100" y="70" font-size="14" fill="var(--muted)">snack stall</text></svg>';
+/** A picture with enough filled shapes to pass the "detailed illustration" check. */
+const picture = (viewBox: string, label: string, shapes: number) =>
+  `<svg viewBox="${viewBox}" role="img" aria-label="${label}">` +
+  Array.from({ length: shapes }, (_, i) => `<rect x="${i}" y="${i}" width="10" height="10" fill="var(--illus-wood)"/>`).join("") +
+  "</svg>";
+
+export const scene = picture("0 0 640 260", "A snack stall at a school fair with a price board and a queue", 80);
+export const hero = picture("0 0 640 200", "Kavya at her snack stall at a busy school fair", 50);
+export const doorPictures = Object.fromEntries(
+  ["door-1", "door-2", "door-3"].map((id) => [id, picture("0 0 240 150", `Before and after for ${id}`, 20)]),
+);
 
 export const demo = {
   concept: "Law of demand",
@@ -189,20 +203,19 @@ export const stories = {
 
 export const page = `<title>The Quiet Stall</title>
 <meta name="claude:viewport-fit-sides">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=PT+Mono&display=swap">
 <style>
-:root{--paper:#fff;--ink:#000;--sand:#4ab}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--paper:#161718;--ink:#e8e6e1}}
-:root[data-theme="dark"]{--paper:#161718}
+:root{--font-body:"Poppins",system-ui,sans-serif;--color-primary:#0c817b;--color-text:#242424;--color-background:#fafafa;--illus-skin-1:#f8d7bd;--illus-wood:#c38f5c;--illus-shade:rgba(36,36,36,0.12)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--color-primary:#3fb8b0;--color-text:#f2f2f2;--color-background:#121414}}
+:root[data-theme="dark"]{--color-background:#121414}
 [hidden]{display:none!important}
-body{background:var(--paper);font-family:Georgia,serif}
-h1,h2{font-family:Cinzel,serif}
-.mono{font-family:"PT Mono",monospace}
+body{background:var(--color-background);color:var(--color-text);font-family:var(--font-body)}
 </style>
 <main class="book"><h1>The Quiet Stall</h1>
+<!--HERO-->
 <section class="meet"><p data-path="meet.lines.0">This is Kavya. She runs the snack stall.</p>
 <!--SCENE-->
 </section>
+<section class="doors">${["door-1", "door-2", "door-3"].map((id) => `<div class="door"><!--DOOR:${id}--></div>`).join("")}</section>
 ${["hook", "predict", "play", "notice", "name", "break", "transfer", "check"]
   .map((id) => `<section class="stage" data-stage="${id}" data-demo-state="${id}"><div class="layer" data-tier="builder" hidden></div><div class="layer" data-tier="explorer" hidden></div></section>`)
   .join("\n")}
@@ -220,7 +233,11 @@ export const replies: Record<string, string> = {
   plan: `<concept_plan>${JSON.stringify(plan)}</concept_plan>`,
   arc: `<story_arc>\n${arc}\n</story_arc>`,
   cast: `<cast_scene>${JSON.stringify(cast)}</cast_scene>`,
-  scene: `<scene_svg>${scene}</scene_svg>`,
+  scene:
+    `<scene_svg>${scene}</scene_svg>\n<hero_svg>${hero}</hero_svg>\n` +
+    Object.entries(doorPictures)
+      .map(([id, svg]) => `<door_svg id="${id}">${svg}</door_svg>`)
+      .join("\n"),
   demo: `<demo_spec>${JSON.stringify(demo)}</demo_spec>`,
   copy: `<copy>${JSON.stringify(copy)}</copy>`,
   stories: `<stories>${JSON.stringify(stories)}</stories>`,

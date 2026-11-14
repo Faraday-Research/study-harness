@@ -1,57 +1,47 @@
 ---
 name: edu-v2-content-presentation
-description: Assemble the concept page in the Eloquent Lab design - book column with inline sim figures (default) or split view, predict/check, summary and exercises - from every earlier edu-v2 output.
+description: Assemble the concept page - book column with inline sim figures (default) or split view, predict/check, summary and exercises - from every earlier edu-v2 output.
 max_output_tokens: 32000
 ---
 # edu-v2-content-presentation
 
-Assemble the final page for one concept in the **Eloquent Lab** design: Eloquent JavaScript's book typography and structure, with Brilliant's commit-then-check moments inside the prose. Plain words first, a picture or metaphor before the formula, short blocks.
+Assemble the final page for one concept: a book-like reading column with commit-then-check moments inside the text. Plain words first, a picture or metaphor before the formula, short blocks.
 
 ## 1. Inputs
-`<concept_plan>`, `<story_arc>`, `<cast_scene>`, `<demo_spec>`, `<copy>` (Foundation copy), `<stories>` (Builder and Explorer chapter stories), `<colour_map>`, `<artifact>` (the ARTIFACT declaration values) and `<track>`. The page contract and drawing rules are in `edu-v2-layout-and-drawing` (below). Voice is `edu-v2-story-and-scene`.
+`<concept_plan>`, `<story_arc>`, `<cast_scene>`, `<demo_spec>`, `<copy>` (Foundation copy), `<stories>` (Builder and Explorer chapter stories), `<colour_map>`, `<artifact>` (the ARTIFACT declaration values) and `<track>`. The page contract and drawing rules are in `edu-v2-layout-and-drawing`, and the look (fonts, colours, spacing, components) is in `edu-v2-material-design` (both below). Voice is `edu-v2-story-and-scene`.
 
 - Use the copy and stories word for word. Do not rewrite them. `*term*` in the copy becomes `<em>term</em>`.
-- The scene picture is already drawn. Where the Meet section's scene picture goes, write exactly `<!--SCENE-->` on its own line; the harness puts the SVG there. Do not draw the scene yourself.
+- The pictures are already drawn. Write a placeholder on its own line where each goes, and the harness puts the drawn SVG there. Do not draw the scene, the hero or the Door pictures yourself.
+  - `<!--HERO-->` where the hero picture goes (the harness wraps it in `figure.hero`).
+  - `<!--SCENE-->` where the Meet section's scene picture goes (wrapped in `figure.scene`).
+  - `<!--DOOR:door-1-->` at the top of each Door's card, with that door's id from the plan.
 - Build the figure's model from the demo spec, honestly. All figures are views of one shared state.
 
 ## 2. Layout
-- **Book (default).** One column, `max-width: 35em`, centred, padding-block 2em 5em. Sims are `figure.sim` inline in the text, numbered "Fig. 1.1". At 1150 px and up a figure may extend 3em past each side, except inside a layer.
-- **Split (toggle in the header, 900 px and up).** Demo pane 55 percent, sticky under the header. Text 45 percent at 18 px, max 32em. Switching moves the same figure nodes (comment placeholders mark their home), so no state is copied or lost.
+- **Book (default).** One wide, left-aligned column that uses the frame's width (widths in `edu-v2-material-design` section 3). Sims are `figure.sim` inline in the text, numbered "Fig. 1.1".
+- **Split (toggle in the header, 900 px and up).** Demo pane 55 percent, sticky under the header. Text 45 percent. Switching moves the same figure nodes (comment placeholders mark their home), so no state is copied or lost.
 - **Phone split (below 900 px).** Demo sticky on top, at most 52vh, a "Hide demo" handle, two-column compact controls, no caption, shorter canvas. The text scrolls underneath.
 - Header: course title (hidden under 600 px), level tabs, Book/Split, and an 8-segment progress bar that fills when a stage is passed, not when scrolled.
 - 16 px gutters with safe-area `max()`, 44 px touch targets, no horizontal scroll.
 
-## 2a. Design system (Eloquent Lab)
-**Type**
-- Reading text: `Georgia, 'Nimbus Roman No9 L', 'Century Schoolbook L', serif`, 20px, line-height 1.45; 18px under 600 px. Never sans for running text.
-- Headings h1 to h3 only: Cinzel 700, letter-spacing 2px, sizes 130 / 115 / 100 percent, `text-wrap: balance`. Never Cinzel on buttons, labels or under 16 px.
-- Numbers, readouts, equations, stage tags: PT Mono, tabular figures, units always shown.
-- Load Cinzel 700 and PT Mono from Google Fonts (`<link>` to fonts.googleapis.com) with the fallbacks above.
+## 2a. Look
+Style every part of the page as `edu-v2-material-design` says: its tokens, type, spacing between sections and sub-sections, and components. This skill says what goes on the page and in what order, not how it looks.
 
-**Colour tokens** (light / dark)
-`--paper #fff / #161718`, `--ink #000 / #e8e6e1`, `--ink-2 #333 / #c9c7c2`, `--muted #6b6b6b / #9b9b98`, `--faint #aaa / #66686a`, `--rule #e3e3e3 / #2c2e30`, `--link #467 / #8fb7c5`, `--sand #4ab / #4fb9c9` (the only interface colour), `--sand-ink #24808f / #6cc6d3`, `--solution #156 / #86bccb`, `--tile #f5f7f7 / #1d1f21`, `--ok #1a7f4b / #4cc285`, `--notyet #a85f0a / #e2a24c`. Quantity colours `--q-<id>` come from the colour map, light and dark.
+The parts named below that skill styles: the title block (chapter number, h1, epigraph, hero), stage heads ("Step N of 8" tag and the stage name as h2), sub-section tags ("1 · Foundation", "2 · Builder", "3 · Explorer"), `figure.sim`, quantity terms `span.q.<id>[data-q]`, Predict and Check tiles with their button and verdict line (**Yes.** or **Not yet.**), the lock note, run controls, layers and their "+ Go deeper" openers, Doors cards, the story player, "what stuck" and exercises.
 
-**Book furniture**
-- Chapter number above the h1: 60 percent, `--faint`, "Chapter N · Artifact M". Nav ◂ ● ▸ top right, 80 percent, `--faint`.
-- Epigraph: the copy's epigraph, 85 percent, `--ink-2`, indented 3em, curly quotes by CSS, em-dash footer with an italic `cite`.
-- Hero: ink-line SVG (viewBox 640x170, currentColor strokes, solid fills only as accents) in a circle with `4px double var(--muted)`, max 75 percent wide.
-- Paragraph ¶ on hover at the right margin, desktop only.
-
-**Components**
-- Sim figure: no card, no shadow, no radius. Only a 1px `--sand` hairline above and below, caption `<b>Fig. 1.1</b>` in small caps.
-- Figure inner layout: graph and runs on the left, the controls stacked vertically in one column on the right (about 130 to 200 px wide, 128 px on phones), never below the graph. Each control is label, value, then slider. The run button sits at the bottom of that column.
-- Stage head: PT Mono 13px tag "Step N of 8" in `--faint`, then Cinzel h2 with the stage name.
-- Quantity term `span.q.<id>[data-q]`: quantity colour, 1.5px dotted underline. Hover or tap highlights the same quantity in the figure. Use the same colour for that quantity in controls, readouts and graph axes.
-- Predict and Check: tiles (min 56 px, `--tile` fill, radius 10, text or a small line picture), one black pill button ("Lock my guess", "Check"), then a verdict line with a 3px left rule: **Yes.** in `--ok` or **Not yet.** in `--notyet`, followed by the why, or a nudge back to the figure. Lock tiles after a right answer. Never red, crosses, points, streaks or timers.
-- Lock note: one `--notyet` line under the figure ("Make your guess in step 2 first.").
-- Run controls: "Clear runs" appears only after the first run. Earlier runs stay as faint dashed marks.
-- Stage sub-sections: every stage with layers is three sub-sections in fixed order, each with a mono tag: "1 · Foundation", "2 · Builder", "3 · Explorer". Foundation is always shown. Builder and Explorer are layers (2px `--sand` left rule) that open in that order, each below the one before. Anything that closes a stage and is not a tier (Where you stand, Back to the three things) comes after the three sub-sections. Opener: outlined `--sand` pill "+ Go deeper: Builder".
-- Doors: three `--tile` cards, 120×76 line picture drawn from the plan's picture spec (no text inside the picture), label, mono status "not yet" or "linked" (`--ok`).
-- Exercises: answer area between two `--sand` hairlines; hints are `details` with a ▸ marker, body in `--solution`.
+Behaviour that goes with those parts:
+- Figure inner layout: graph and runs on the left, the controls in one column on the right, never below the graph. Each control is label, value, then slider. The run button sits at the bottom of that column.
+- Quantity terms: hover or tap highlights the same quantity in the figure.
+- Predict and Check: tiles, one button ("Lock my guess", "Check"), then the verdict followed by the why, or a nudge back to the figure. Lock tiles after a right answer.
+- Lock note: one line under the figure ("Make your guess in step 2 first.").
+- Run controls: "Clear runs" appears only after the first run. Earlier runs stay on the graph as faint dashed lines.
+- Stage sub-sections: every stage with layers is three sub-sections in fixed order (Foundation, Builder, Explorer). Foundation is always shown. Builder and Explorer are layers that open in that order, each below the one before. Anything that closes a stage and is not a tier (Where you stand, Back to the three things) comes after the three sub-sections.
+- Doors: one card per door, each with its picture placeholder, a label and a status "not yet" or "linked".
+- Exercises: an answer area and hints as `details`.
 
 ## 3. Page order
 1. Header: course title, level tabs, Book/Split, progress.
-2. Chapter number and h1 (the copy's title), epigraph, hero figure.
+2. Chapter number and h1 (the copy's title), epigraph, `<!--HERO-->`.
 3. Meet: cast, place, `<!--SCENE-->`.
 4. Doors, part 1.
 5. Eight stages as `section.stage` blocks, each with `data-stage` (hook, predict, play, notice, name, break, transfer, check) and `data-demo-state` (the demo spec state id), each split into the three ordered sub-sections above. In Book layout the sim figure sits in Play; Builder figures sit inside their layer.
@@ -74,7 +64,7 @@ Assemble the final page for one concept in the **Eloquent Lab** design: Eloquent
 - The text column is the narration of the eight stages. It carries no notes about the page itself and no explainer side notes. Keep only a note that explains a lock.
 
 ## 5. Linking text to the demo
-Use IntersectionObserver (root margin about -45% / -50%). When a stage enters view, call `setDemoState(id)` for its `data-demo-state`. This flags the relevant controls with a dashed `--sand` outline and prepares highlights. It never resets the student's runs, prediction or answers. It works the same in Book and Split. The level tab follows the scroll. Quantity terms in the text light up their quantity in the figure.
+Use IntersectionObserver (root margin about -45% / -50%). When a stage enters view, call `setDemoState(id)` for its `data-demo-state`. This flags the relevant controls with the demo-state highlight and prepares highlights. It never resets the student's runs, prediction or answers. It works the same in Book and Split. The level tab follows the scroll. Quantity terms in the text light up their quantity in the figure.
 
 ## 6. Layers
 Foundation is always shown. A "Go deeper" button in the text opens the next tier below. Layers add text below and reveal controls in reserved slots. Nothing above or already placed moves, changes or disappears. Question lists are built once with all tiers in the DOM and deeper tiers closed.
@@ -90,7 +80,7 @@ Foundation is always shown. A "Go deeper" button in the text opens the next tier
 - The script must parse and must not throw on load.
 
 ## 9. Check before you reply
-- Georgia body, Cinzel only on headings, teal (`--sand`) only on interactive things, no cards or shadows around sims, quantity colours match between text and figure.
+- The page passes the checks in `edu-v2-material-design` section 6 (Poppins only, tokens only, spacing between sections and sub-sections, components as described). Quantity colours match between text and figure.
 - Each stage reads Foundation, Builder, Explorer in order. Equations only inside Explorer layers.
 - The three chapter stories pick up from each other, use the same two characters and end in their handoffs.
 
