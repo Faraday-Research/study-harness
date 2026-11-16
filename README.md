@@ -56,3 +56,19 @@ Every step also gets the platform rules (`edu-v2-adapt-teach-platform`).
 
 Files go to `out/edu-v2/<topic>/` as each step finishes, with a `run-log.md`. From code, call
 `harness.edu({ topic, track, position })`. Pass `{ resume: readEduOutputs(files) }` to continue a run.
+
+## Topic thumbnail (`harness.thumbnail`)
+
+Draws the image on the right of a topic's banner with the `mentor-thumbnail-generator` skill
+(`src/skills/mentor-thumbnail-generator`, copied from the Claude skill of the same name): one
+transparent 320x240 SVG, a teal glow and a simple line diagram of the topic. One model call, on the
+design model when `simulation` is set. The reply is checked in code (`checkThumbnail` in
+`src/thumbnail.ts`: viewBox, the two glow gradients, size, and no scripts, event handlers, external
+links, embedded images, filters or styles); a failed check gets one fix.
+
+```ts
+const result = await harness.thumbnail({ topic: "Mitosis", subject: "Biology", description: "…" });
+if (result.status === "ok") use(result.svg);
+```
+
+The SVG is model output: show it as an `<img>` (e.g. a `data:` URL), never inline in the page.

@@ -186,6 +186,19 @@ describe("edu-v2 checks", () => {
     expect(checkPlan(plan, fx.brief as never).some((p) => /counts in the picture/.test(p.message))).toBe(true);
   });
 
+  it("names the brief's misconceptions when the plan has too few, and the valid probe ids", () => {
+    const plan = structuredClone(fx.plan) as unknown as ConceptPlan;
+    const kept = plan.misconceptions[0]!;
+    plan.misconceptions = [kept];
+    plan.check.explorer[0]!.probe_for = "none";
+    const messages = checkPlan(plan, fx.brief as never).map((p) => p.message).join("\n");
+    const brief = fx.brief as { misconceptions: { id: string }[] };
+
+    expect(messages).toMatch(/The plan has 1 misconceptions; it needs three or four\. The brief has/);
+    for (const { id } of brief.misconceptions) expect(messages).toContain(id);
+    expect(messages).toContain(`probes "none", which isn't a misconception id. Every Check item probes one of the plan's misconceptions (${kept.id})`);
+  });
+
   it("passes the fixture arc and rejects a missing beat", () => {
     expect(checkArc(fx.arc)).toEqual([]);
     expect(checkArc(fx.arc.replace(/^6 Break:.*$/m, "")).map((p) => p.message)).toContain('The arc is missing the "6 Break:" line.');

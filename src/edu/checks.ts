@@ -257,7 +257,15 @@ export function checkPlan(value: unknown, brief: ConceptBrief | undefined): EduP
 
   // Misconceptions
   const ids = plan.misconceptions.map((m) => m.id);
-  if (ids.length < 3 || ids.length > 4) out.push(err(`The plan has ${ids.length} misconceptions; it needs three or four.`));
+  if (ids.length < 3 || ids.length > 4) {
+    // Name what's available, so the fix can't just repeat the same plan.
+    const available = brief?.misconceptions.length
+      ? ` The brief has ${brief.misconceptions.length}: ${brief.misconceptions.map((m) => `${m.id} (${m.status}) "${m.wrong_idea}"`).join("; ")}.` +
+        " Use three or four of them, including unverified or from-memory ones (keep their status in source_status)," +
+        " and give each its own Check probe."
+      : "";
+    out.push(err(`The plan has ${ids.length} misconceptions; it needs three or four.${available}`));
+  }
   const dup = ids.find((id, i) => ids.indexOf(id) !== i);
   if (dup) out.push(err(`Misconception id ${dup} is used twice; ids are unique in the chapter.`));
   const known = new Set(ids);
@@ -290,12 +298,28 @@ export function checkPlan(value: unknown, brief: ConceptBrief | undefined): EduP
 
   // Check
   const items = TIERS.flatMap((tier) => plan.check[tier].map((item) => ({ tier, item })));
-  for (const tier of TIERS) if (plan.check[tier].length === 0) out.push(err(`The Check has no ${tier} items.`));
+  for (const tier of TIERS) {
+    if (plan.check[tier].length === 0) {
+      out.push(
+        err(
+          `The Check has no ${tier} items. Add at least one to check.${tier}` +
+            (tier === "explorer" ? ' (an "options" question works when there is nothing to calculate).' : "."),
+        ),
+      );
+    }
+  }
   for (const id of ids) {
     if (!items.some(({ item }) => item.probe_for === id)) out.push(err(`Misconception ${id} has no Check probe (probe_for "${id}").`));
   }
   for (const { tier, item } of items) {
-    if (!known.has(item.probe_for)) out.push(err(`Check item ${item.id} probes "${item.probe_for}", which isn't a misconception id.`));
+    if (!known.has(item.probe_for)) {
+      out.push(
+        err(
+          `Check item ${item.id} probes "${item.probe_for}", which isn't a misconception id.` +
+            ` Every Check item probes one of the plan's misconceptions (${ids.join(", ") || "none yet"}); set probe_for to the one this question tests.`,
+        ),
+      );
+    }
     for (const w of item.wrong_answers ?? []) {
       if (!known.has(w.misconception)) out.push(err(`Check item ${item.id} maps a wrong answer to "${w.misconception}", which isn't a misconception id.`));
     }

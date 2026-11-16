@@ -17,7 +17,7 @@ You receive `<concept_brief>` from `edu-v2-concept-research`, the `<track>`, and
 3. **The relationship (stage 5).** One plain sentence. Every Check and Doors question may use only this.
 4. **Variables and units.** Name each quantity, its unit and the range the artifact allows. Give each quantity an `id` (lowercase, one word) and a colour in `colour_map`, muted and readable as text on a white page (at least 4.5:1 contrast), with a lighter value for dark mode that is readable on a near-black page. Don't use teal: it is the interface colour. Keep any colour already in `<chapter>`.
 5. **Model and honest limits.** The simple model the student uses, and the assumption that fails in Break, with the boundary value or condition.
-6. **Misconceptions.** Three or four wrong ideas, ids F1, F2, F3 (or a letter that fits the concept, like D1, D2, D3 for demand), unique in the chapter. Each gets a probe question and a wrong answer that maps to it, and `brief_id` names the brief misconception it comes from.
+6. **Misconceptions.** Three or four wrong ideas, ids F1, F2, F3 (or a letter that fits the concept, like D1, D2, D3 for demand), unique in the chapter. Each gets a probe question and a wrong answer that maps to it, and `brief_id` names the brief misconception it comes from. Always three or four, even when some of the brief's misconceptions are `unverified` or `from-memory`: keep those, flagged through `source_status`, rather than dropping them.
 7. **Doors.** Two or three distinct real-world uses from different domains where the relationship holds. Each says what changes, what responds, a one-line result, and a picture spec (a before and an after picture with a count of a visible thing; the two counts differ). Check that each can be asked with only the stage 5 relationship.
 
 ## 2. The eight-stage spine
@@ -43,7 +43,9 @@ Write Foundation once. Add Builder and Explorer as layers on top, not as copies.
 
 ## 4. The Check and the Doors
 - Foundation questions first. "Go deeper" opens Builder, then Explorer, one tier at a time.
+- **Every tier needs at least one Check item: Foundation, Builder and Explorer are never empty.** If the topic has nothing to calculate, Explorer still gets an item: a harder `options` question (a why or what-if about the relationship, or a reason to choose). `numeric` is optional.
 - One probe per misconception (at least one Check item per misconception, across the tiers). A wrong answer is mapped to its misconception id.
+- Every Check item's `probe_for` is one of the plan's misconception ids, never "none" or empty. A harder Explorer `options` question probes the misconception it is closest to.
 - Status per concept: **secure** (right quickly), **shaky** (needed hints or several tries), **gap** (exhausted attempts or repeated the same wrong idea).
 - Back to the Doors: one question per door, per tier, with a two-line explanation. Give one `link_statement` that holds for all the doors. Report Doors next to the status, not inside it.
 
@@ -55,7 +57,7 @@ Write Foundation once. Add Builder and Explorer as layers on top, not as copies.
 5. Events are planned for guesses, answers, hints, doors and status.
 
 ## 6. Output
-Reply with only this JSON object inside `<concept_plan>` tags. No text outside the tags, no ``` fences. Foundation and Builder Check items use `options` and `answer`; Explorer items may use `numeric` instead.
+Reply with only this JSON object inside `<concept_plan>` tags. No text outside the tags, no ``` fences. Foundation and Builder Check items use `options` and `answer`; Explorer items may use `numeric` instead (or `options` when there's nothing to calculate). Each of the three `check` lists has at least one item.
 
 <concept_plan>
 {
@@ -75,7 +77,7 @@ Reply with only this JSON object inside `<concept_plan>` tags. No text outside t
   "transfer": {"foundation": "", "builder": "", "explorer": ""},
   "check": {
     "foundation": [{"id": "f-1", "probe_for": "F1", "question": "", "options": [""], "answer": "", "wrong_answers": [{"answer": "", "misconception": "F1"}]}],
-    "builder": [],
+    "builder": [{"id": "b-1", "probe_for": "F1", "question": "", "options": [""], "answer": "", "wrong_answers": [{"answer": "", "misconception": "F1"}]}],
     "explorer": [{"id": "e-1", "probe_for": "F2", "question": "", "numeric": {"answer": 0, "unit": "", "tolerance": 0, "distractors": [0]}, "wrong_answers": [{"answer": "", "misconception": "F2"}]}]
   },
   "doors_check": {

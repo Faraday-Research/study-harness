@@ -13,6 +13,7 @@ import {
   type SimulationResult,
 } from "./simulation.js";
 import { buildSystemPrompt, collectTools, type Skill } from "./skill.js";
+import { createThumbnailPipeline, type ThumbnailInput, type ThumbnailOptions, type ThumbnailResult } from "./thumbnail.js";
 import { builtinSkills } from "./skills/index.js";
 import type { Provider, StopReason, Usage } from "./types.js";
 
@@ -121,6 +122,12 @@ export interface Harness {
    * replay earlier answers; saveLessons() writes the plan, graph and Cypher.
    */
   lessons(input: LessonsInput, options?: LessonsOptions): Promise<LessonsResult>;
+  /**
+   * Draw a topic's thumbnail (the mentor-thumbnail-generator skill): one transparent 320x240 SVG
+   * with a teal glow and a simple line diagram, for the right of the topic's banner. One model
+   * call (on the design model when set), checked in code, with one fix if the check fails.
+   */
+  thumbnail(input: ThumbnailInput, options?: ThumbnailOptions): Promise<ThumbnailResult>;
   /** Stop the in-flight run for a session. Returns false if nothing was running. */
   cancel(sessionId: string): boolean;
   /** Forget a conversation. */
@@ -186,6 +193,8 @@ export function createHarness(config: HarnessConfig): Harness {
     maxTurns,
   });
   const lessons = createLessonsPipeline({ getProvider: () => provider });
+  // A drawing, like the lesson page: use the design model when there is one.
+  const thumbnail = createThumbnailPipeline({ getProvider: () => simulationProvider ?? provider });
 
   async function generate(input: ResearchInput, options: GenerateOptions = {}): Promise<GenerateResult> {
     const { signal, theme, testLesson, onCheck } = options;
@@ -264,6 +273,7 @@ export function createHarness(config: HarnessConfig): Harness {
     generate,
     edu,
     lessons,
+    thumbnail,
 
     cancel(sessionId) {
       const running = sessions.get(sessionId)?.running;

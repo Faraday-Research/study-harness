@@ -19,6 +19,12 @@ export {
 } from "./harness.js";
 export type { ResearchInput, ResearchOptions, ResearchResult } from "./research.js";
 export {
+  checkThumbnail,
+  type ThumbnailInput,
+  type ThumbnailOptions,
+  type ThumbnailResult,
+} from "./thumbnail.js";
+export {
   EDU_PIPELINE_NAME,
   EDU_STEPS,
   eduFiles,
