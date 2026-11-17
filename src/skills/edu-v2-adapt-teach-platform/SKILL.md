@@ -71,7 +71,7 @@ Doors are reported next to the status, never inside it. A Door is Linked when an
 
 ## 9. Guardrails
 - No intro or explainer side notes in artifacts. The text is stage narration, not notes about the page.
-- One look across every artifact: The Mentor's design system, as set out in `edu-v2-material-design`.
+- One look across every artifact: Mentor's design system, as set out in `edu-v2-material-design`.
 - Keep the models honest (a flat floor stays flat; a later chapter's idea stays out).
 - One artifact title per page, two to four words, unique across a chapter.
 - Keep student data local by default. Only a host app reads the events.

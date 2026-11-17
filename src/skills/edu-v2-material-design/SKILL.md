@@ -1,12 +1,12 @@
 ---
 name: edu-v2-material-design
-description: The look of an edu-v2 concept page and its pictures in The Mentor's design system - Poppins type, teal and neutral colour tokens (light and dark), spacing between sections and sub-sections, and how each component looks. Given as a reference to the scene and page steps.
+description: The look of an edu-v2 concept page and its pictures in Mentor's design system - Poppins type, teal and neutral colour tokens (light and dark), spacing between sections and sub-sections, and how each component looks. Given as a reference to the scene and page steps.
 ---
 # edu-v2-material-design
 
 How the concept page and its pictures look. This skill owns appearance only: fonts, colours, spacing and how each part is styled. What is on the page and in what order is `edu-v2-content-presentation`. The page contract, layers and drawing geometry are `edu-v2-layout-and-drawing`. When those skills name a part (a figure, a tile, a layer), style it as described here.
 
-The page lives inside The Mentor app, so it uses the app's design system: clean, flat and light. A near-white page, white cards with 1px borders and 8px corners, one teal colour for actions, and Poppins for every word. No shadows. Depth comes from borders, spacing and the pale teal tint.
+The page lives inside Mentor app, so it uses the app's design system: clean, flat and light. A near-white page, white cards with 1px borders and 8px corners, one teal colour for actions, and Poppins for every word. No shadows. Depth comes from borders, spacing and the pale teal tint.
 
 ## 1. Tokens
 Put these on `:root`, with the dark values in a `@media (prefers-color-scheme: dark)` block guarded by `:root:not([data-theme="light"])`, and again under `:root[data-theme="dark"]`. Use only these tokens in the CSS, the SVGs and the canvas. Never write a raw hex colour, px font size or font name anywhere else.
