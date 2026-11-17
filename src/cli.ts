@@ -28,7 +28,8 @@ import {
   type SimulationResult,
   type Usage,
 } from "./index.js";
-import { fileCache, saveLessons, type LessonsEvent, type LessonsSource } from "./lessons.js";
+// Types only: /lessons loads lessons.js itself, so the CLI runs without doc-extraction-util.
+import type { LessonsEvent, LessonsSource } from "./lessons.js";
 
 const SESSION = "cli";
 
@@ -280,6 +281,13 @@ async function runLessons(args: string, signal: AbortSignal) {
   const title = rest.find((p) => p && p !== "--no-prerequisites");
   const file = resolve(path);
   const bookId = slugify(basename(file, extname(file)));
+
+  const lessons = await import("./lessons.js").catch((error: unknown) => {
+    if ((error as { code?: string })?.code === "ERR_MODULE_NOT_FOUND") return null;
+    throw error;
+  });
+  if (!lessons) return console.log("/lessons needs the doc-extraction-util package; install it next to the harness.");
+  const { fileCache, saveLessons } = lessons;
 
   let source: LessonsSource;
   if (extname(file).toLowerCase() === ".pdf") {

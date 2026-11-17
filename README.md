@@ -2,8 +2,14 @@
 
 ## Lessons from a textbook (`/lessons`)
 
-Cuts a textbook into lessons made of topics, with prerequisites, using `doc-extraction-util`
-(`deps/doc-extraction-util`, a git subtree). The library does the OCR, layout graph, page math and
+**Optional.** Lessons need the `doc-extraction-util` package, an optional peer dependency. The rest of
+the harness installs, builds, tests and runs without it. Without it, `harness.lessons()`, `/lessons` and
+`study-harness/lessons` say it's missing, the build compiles lessons against stub types
+(`stubs/`), and `test/lessons.test.ts` is skipped. With it (in this package's `node_modules`, or in the
+`node_modules` of an app that has the harness in `deps/`), lessons are built, typed and tested in full.
+
+Cuts a textbook into lessons made of topics, with prerequisites, using `doc-extraction-util`. The
+library does the OCR, layout graph, page math and
 prerequisite linking; the harness answers its AI tasks one at a time on the main model, each with
 its skill (`src/skills/find-topics`, `group-lessons`, `find-prerequisites`, copied from the
 library and ours to edit) and a single `submit_answer` tool whose schema is the task's.
@@ -23,7 +29,7 @@ library and ours to edit) and a single `submit_answer` tool whose schema is the 
 ```
 
 From code: `harness.lessons({ source: { pdf, mistralApiKey }, book: { id, title } }, { cache: fileCache(dir) })`,
-then `saveLessons(outDir, result)` writes `plan.json`, `graph.json`, `book.cypher` and `layout.json`.
+then `saveLessons(outDir, result)` (both from `study-harness/lessons`) writes `plan.json`, `graph.json`, `book.cypher` and `layout.json`.
 Answers are cached by a hash of (instructions, material, schema, model), and OCR by a hash of the PDF,
 so re-running a book is free. Unusable answers are sent back to the model to fix (3 tries in all);
 connection errors, rate limits and overloads retry the call. Editing a skill is fine as long as the

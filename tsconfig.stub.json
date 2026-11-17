@@ -1,0 +1,11 @@
+{
+  // Used by scripts/build.mjs when doc-extraction-util isn't installed: same build, with its
+  // imports pointed at stubs/doc-extraction-util.d.ts.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "doc-extraction-util": ["./stubs/doc-extraction-util.d.ts"],
+      "doc-extraction-util/*": ["./stubs/doc-extraction-util.d.ts"]
+    }
+  }
+}

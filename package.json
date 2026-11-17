@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "tsx --env-file=.env src/cli.ts --theme ../dist-theme/theme.css --fonts ../dist-theme/fonts.css",
     "prebuild": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
-    "build": "tsc && node scripts/copy-skills.mjs",
-    "typecheck": "tsc --noEmit",
+    "build": "node scripts/build.mjs && node scripts/copy-skills.mjs",
+    "typecheck": "node scripts/build.mjs --noEmit",
     "start": "node dist/cli.js",
     "test": "vitest run",
     "try-search": "tsx --env-file=.env scripts/try-search.ts",
@@ -24,7 +24,6 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
-    "doc-extraction-util": "file:../doc-extraction-util",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.1.0"
