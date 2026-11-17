@@ -30,7 +30,7 @@ Two variants on one page, switched by `.fp[data-layout="book|split"]` and a Book
 
 **Split pane.** Same order and content. Left: one sticky demo. Right: text blocks with `data-demo-state`. Under 900 px the demo is sticky at the top and collapsible.
 
-No meta notes. No "this page takes ten minutes" asides, no explainer notes under widgets. Keep only notes that explain a lock (for example "Make your guess in step 2 first").
+No meta notes. No "this page takes ten minutes" asides, no explainer notes under widgets. Keep only the note that invites a guess before comparing (for example "Make a guess in step 2 to compare it with your runs").
 
 ## 2. Levels are layers, not modes
 - Tabs read "1 · Foundation", "2 · Builder", "3 · Explorer". The tab follows the scroll position (scroll-spy). A tab click scrolls to the nearest open part of that level.
@@ -41,7 +41,8 @@ No meta notes. No "this page takes ten minutes" asides, no explainer notes under
 - Give every item a unique id of tier plus id. Keep answer state by that id.
 - Equations live only in an Explorer layer (`data-equation`). That includes the equation line inside any figure: hide it below Explorer.
 - A figure shows only the controls and readouts of the current tier.
-- Predict is one widget: pictured choice at all levels, Builder adds a number, Explorer adds confidence and a reason. Locked after commit.
+- Predict is one widget: pictured choice at all levels, Builder adds a number, Explorer adds confidence and a reason. The guess is locked after commit.
+- The figure is always live. Every control, run button and readout works from the moment the page loads, at every level, with or without a guess. Never render a figure control `disabled` and never disable it until a guess is made. The guess only gates the comparison.
 
 ## 3. Artifact page contract
 - No doctype, html, head or body tags. A `<title>` of two to four words. `<meta name="claude:viewport-fit-sides">`.

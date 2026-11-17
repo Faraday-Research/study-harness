@@ -47,7 +47,7 @@ The track is set once on `body[data-track]`. The register follows the track. Eve
 Foundation, Builder, Explorer describe how much support an artifact gives. They are layers on one page, not modes and not three copies. Foundation is always shown. A "Go deeper" button adds the next layer below. The tab follows the scroll. Nothing above ever changes. In the book page, deeper layers add text and controls below in the flow. In the split layout, deeper layers add text on the right and reveal controls on the left in reserved slots. In both, nothing placed moves or disappears. The story follows the levels as three connected chapters with one cast and one plot (Foundation, then Builder, then Explorer), never the same story three times. No score or "slow" label is shown to the student.
 
 ## 5. Shared state
-Inline figures are views of one shared state, never two copies of the model. The page owns state, sliders, graph drawing, readouts, the formula focus link, the predict gate, layers and events. Each artifact declares:
+Inline figures are views of one shared state, never two copies of the model. The page owns state, sliders, graph drawing, readouts, the formula focus link, the predict-compare, layers and events. The figure is always live: a guess is never needed before the student can play. Each artifact declares:
 `var ARTIFACT = { id: '<concept-slug>-<n>', chapter: '<chapter-slug>', track: 'hs', core: '1.0.0' };`
 
 ## 6. Chapter rules

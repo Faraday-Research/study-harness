@@ -823,6 +823,16 @@ export function checkPage(page: string, copy: EduCopy | undefined, plan?: Concep
   }
   if (!/data-path=/.test(page)) out.push(warn("Give the copy's words data-path attributes."));
   if (!/figure[^>]*class=["'][^"']*\bsim\b/.test(page)) out.push(err("The page needs at least one figure.sim inside the text."));
+  // The figure is always live: a control rendered disabled shows the student a dead figure until
+  // they find the guess (the guess may only gate the comparison).
+  for (const [, figure] of page.matchAll(/<figure\b[^>]*class=["'][^"']*\bsim\b[^>]*>([\s\S]*?)<\/figure>/gi)) {
+    const dead = [...figure!.matchAll(/<(input|button|select|textarea)\b[^>]*?\sdisabled\b[^>]*>/gi)].map(
+      (m) => /\bid=["']([^"']+)["']/.exec(m[0])?.[1] ?? m[1]!,
+    );
+    if (dead.length) {
+      out.push(err(`Figure controls are disabled on load (${dead.join(", ")}). The figure is always live: remove "disabled" and never wait for a guess before play; the guess only gates the comparison.`));
+    }
+  }
   if (/edu-v2|SKILL\.md|concept[-_]brief|demo[-_]spec/i.test(page.replace(/<script\b[\s\S]*?<\/script>/gi, ""))) {
     out.push(err("No build notes or pipeline names may appear on the page."));
   }

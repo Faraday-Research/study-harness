@@ -27,13 +27,13 @@ Assemble the final page for one concept: a book-like reading column with commit-
 ## 2a. Look
 Style every part of the page as `edu-v2-material-design` says: its tokens, type, spacing between sections and sub-sections, and components. This skill says what goes on the page and in what order, not how it looks.
 
-The parts named below that skill styles: the title block (chapter number, h1, epigraph, hero), stage heads ("Step N of 8" tag and the stage name as h2), sub-section tags ("1 · Foundation", "2 · Builder", "3 · Explorer"), `figure.sim`, quantity terms `span.q.<id>[data-q]`, Predict and Check tiles with their button and verdict line (**Yes.** or **Not yet.**), the lock note, run controls, layers and their "+ Go deeper" openers, Doors cards, the story player, "what stuck" and exercises.
+The parts named below that skill styles: the title block (chapter number, h1, epigraph, hero), stage heads ("Step N of 8" tag and the stage name as h2), sub-section tags ("1 · Foundation", "2 · Builder", "3 · Explorer"), `figure.sim`, quantity terms `span.q.<id>[data-q]`, Predict and Check tiles with their button and verdict line (**Yes.** or **Not yet.**), run controls, layers and their "+ Go deeper" openers, Doors cards, the story player, "what stuck" and exercises.
 
 Behaviour that goes with those parts:
 - Figure inner layout: graph and runs on the left, the controls in one column on the right, never below the graph. Each control is label, value, then slider. The run button sits at the bottom of that column.
 - Quantity terms: hover or tap highlights the same quantity in the figure.
 - Predict and Check: tiles, one button ("Lock my guess", "Check"), then the verdict followed by the why, or a nudge back to the figure. Lock tiles after a right answer.
-- Lock note: one line under the figure ("Make your guess in step 2 first.").
+- The figure is always live: its controls, run button and readouts work from page load, before any guess, at every level. Never put `disabled` on a figure control and never disable one until a guess is made (the student would see a dead figure). The guess only gates the comparison: after a guess is locked, each run shows "You guessed … / You saw …". Without a guess, runs still work, and one `--notyet` line under the figure invites one ("Make a guess in step 2 to compare it with your runs.").
 - Run controls: "Clear runs" appears only after the first run. Earlier runs stay on the graph as faint dashed lines.
 - Stage sub-sections: every stage with layers is three sub-sections in fixed order (Foundation, Builder, Explorer). Foundation is always shown. Builder and Explorer are layers that open in that order, each below the one before. Anything that closes a stage and is not a tier (Where you stand, Back to the three things) comes after the three sub-sections.
 - Doors: one card per door, each with its picture placeholder, a label and a status "not yet" or "linked".
@@ -61,7 +61,7 @@ Behaviour that goes with those parts:
 - Say the idea in plain words first. Name it after.
 - Metaphor or picture before formula.
 - Short blocks, medium sentences.
-- The text column is the narration of the eight stages. It carries no notes about the page itself and no explainer side notes. Keep only a note that explains a lock.
+- The text column is the narration of the eight stages. It carries no notes about the page itself and no explainer side notes. Keep only the note that invites a guess before comparing.
 
 ## 5. Linking text to the demo
 Use IntersectionObserver (root margin about -45% / -50%). When a stage enters view, call `setDemoState(id)` for its `data-demo-state`. This flags the relevant controls with the demo-state highlight and prepares highlights. It never resets the student's runs, prediction or answers. It works the same in Book and Split. The level tab follows the scroll. Quantity terms in the text light up their quantity in the figure.

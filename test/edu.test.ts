@@ -234,6 +234,13 @@ describe("edu-v2 checks", () => {
     expect(checkSvg(bad).some((p) => p.severity === "error" && /external/.test(p.message))).toBe(true);
   });
 
+  it("rejects a figure whose controls are disabled until a guess", () => {
+    const gated = fx.page.replace("<canvas></canvas>", '<canvas></canvas><input id="carbon" type="range" disabled><button id="save-run" disabled>Save run</button>');
+    const problems = checkPage(gated, undefined).filter((p) => p.severity === "error");
+    expect(problems.map((p) => p.message).join()).toMatch(/disabled on load \(carbon, save-run\)/);
+    expect(checkPage(fx.page, undefined).some((p) => /disabled on load/.test(p.message))).toBe(false);
+  });
+
   it("needs the Break boundary inside the control's range", () => {
     const demo = { ...fx.demo, break: { ...fx.demo.break, boundary_value: 500 } };
     expect(checkDemo(demo, fx.plan as never).some((p) => /can't reach it/.test(p.message))).toBe(true);

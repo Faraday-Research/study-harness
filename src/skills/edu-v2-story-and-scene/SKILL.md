@@ -44,7 +44,7 @@ Meet comes first, before any physics, engineering or economics: cast, place, pic
 | Check | "Just to see what stuck. No timer, no score." |
 
 ## 5. Narration
-The text column carries this stage narration in book style: plain words first, picture or metaphor before formula, short blocks. No notes about the page itself and no explainer side notes. Keep only a note that explains a lock ("Make your guess first").
+The text column carries this stage narration in book style: plain words first, picture or metaphor before formula, short blocks. No notes about the page itself and no explainer side notes. Keep only the note that invites a guess before comparing ("Make a guess to compare it with your runs").
 
 ## 6. Speech
 Speech is a speaker plus their words: `{"speaker": "<cast name>", "words": "…"}`. The words never contain braces, key names, stage labels, or "who:" / "say:".

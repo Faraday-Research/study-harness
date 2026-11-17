@@ -29,7 +29,7 @@ Put these on `:root`, with the dark values in a `@media (prefers-color-scheme: d
 | `--color-text-supporting` | #5b6470 | #a9b1bc | Epigraph, hints, labels in pictures, axis ticks |
 | `--color-text-muted` | #a1a1a1 | #8a8a8a | Metadata only (chapter number, "not yet" status). Never for reading text |
 | `--color-success` | #2f7a4a | #6fbf85 | "Yes." verdicts, "linked", "secure" |
-| `--color-warning` | #9a6412 | #e0b05a | "Not yet." verdicts, lock notes, "shaky" |
+| `--color-warning` | #9a6412 | #e0b05a | "Not yet." verdicts, "shaky" |
 | `--color-lesson-purple` | #6d27d9 | #9a6bf0 | The Explorer layer rule and tag |
 | `--color-lesson-blue` | #3b6fe1 | #7fa3f0 | The Builder layer rule and tag |
 
@@ -123,7 +123,6 @@ Rules:
 - **Layers** (`.layer[data-tier]`). A 2px left rule in the tier's colour (Builder `--color-lesson-blue`, Explorer `--color-lesson-purple`), `--space-4` left padding, `--space-8` above. When open, a "New at Builder" tag in the tier's colour sits at the top.
 - **Predict and Check tiles.** `--color-surface-muted` fill, 1px `--color-border`, `--radius-md`, min height 56px, `--space-3` padding, `--space-3` gap between tiles, text or a small line picture. Hover: `--color-border-strong` border. Selected: `--color-primary-subtle` fill and `--color-border-selected` border. Locked tiles keep their look at reduced opacity (0.6), except the chosen one.
 - **Verdict line.** After the button, `--space-4` above: a 3px left rule and `--space-3` left padding. "**Yes.**" in weight 600 `--color-success` (and a `--color-success` rule), or "**Not yet.**" in weight 600 `--color-warning` (and a `--color-warning` rule), then the why or a nudge back to the figure in `--color-text`. Never `--color-danger`, red, crosses, points, streaks or timers.
-- **Lock note.** One 14px `--color-warning` line under the figure ("Make your guess in step 2 first.").
 - **Runs on the graph.** The current run is a solid 2px line in its quantity colour. Earlier runs are 1.5px dashed lines in the same colour at 50 percent opacity. "Clear runs" appears only after the first run.
 - **Doors.** Three `--color-surface` cards in a row across the full container width (`grid-template-columns: repeat(3, 1fr)`; one column on phones), `--space-4` gap, `--space-4` padding. Each card starts with its picture (the Door's placeholder, filled in by the harness) running to the card's top and side edges, `--radius-md` on its top corners, then the label (14px weight 600) and a 12px status: "not yet" in `--color-text-muted` or "linked" in `--color-success`.
 - **Meet.** Cast introductions as a list with `--space-4` between people. Each name is weight 600. The scene picture (`figure.scene`, filled in by the harness) is a card like the hero, at most `46rem` wide.

@@ -19,7 +19,7 @@ Design the student's interaction as a spec. `edu-v2-concept-break-build` says wh
 - A control that is unavailable for a non-physical reason is hidden, not greyed out. Grey out only when the physics says it cannot move.
 
 ## 3. The stages the student acts in
-**Predict.** Prompt in the character's words (use the cast names). Pictured choice at every level. Builder adds a number. Explorer adds confidence and a reason. Locked after commit.
+**Predict.** Prompt in the character's words (use the cast names). Pictured choice at every level. Builder adds a number. Explorer adds confidence and a reason. The guess is locked after commit; the controls never are. Play never waits for a guess: the guess is only compared with the runs.
 **Play.** One control first. Three to five runs. Earlier runs are remembered and named by condition. List `runs_to_try` with the direction of the result.
 **Notice.** One question per observation, asked before any new word is given. Each prompt names the control it is about.
 **Name.** The one-sentence relationship. The equation is Explorer-only.
