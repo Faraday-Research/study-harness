@@ -12,10 +12,6 @@ import {
   EDU_PIPELINE_NAME,
   EDU_STEPS,
   eduFiles,
-  fileCache,
-  saveLessons,
-  type LessonsEvent,
-  type LessonsSource,
   readEduOutputs,
   slugify,
   listProviders,
@@ -32,6 +28,7 @@ import {
   type SimulationResult,
   type Usage,
 } from "./index.js";
+import { fileCache, saveLessons, type LessonsEvent, type LessonsSource } from "./lessons.js";
 
 const SESSION = "cli";
 

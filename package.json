@@ -17,7 +17,6 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "doc-extraction-util": "file:../doc-extraction-util",
     "@anthropic-ai/sdk": "^1.4.0",
     "openai": "^7.50.0",
     "yaml": "^2.9.1",
@@ -25,9 +24,18 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
+    "doc-extraction-util": "file:../doc-extraction-util",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.1.0"
+  },
+  "peerDependencies": {
+    "doc-extraction-util": "^0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "doc-extraction-util": {
+      "optional": true
+    }
   },
   "types": "dist/index.d.ts",
   "bin": {
@@ -37,6 +45,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./lessons": {
+      "types": "./dist/lessons.d.ts",
+      "import": "./dist/lessons.js"
     }
   },
   "files": [

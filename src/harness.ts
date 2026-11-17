@@ -1,6 +1,7 @@
 import { createEduPipeline, type EduInput, type EduOptions, type EduResult } from "./eduPipeline.js";
 import { createEngine, type Engine, type EngineEvent } from "./engine.js";
-import { createLessonsPipeline, type LessonsInput, type LessonsOptions, type LessonsResult } from "./lessons.js";
+// Types only: lessons.ts pulls in doc-extraction-util, so it is loaded lazily in lessons() below.
+import type { LessonsInput, LessonsOptions, LessonsResult } from "./lessons.js";
 import { createProvider, type ProviderOptions } from "./providers/registry.js";
 import { createResearchPipeline, type ResearchInput, type ResearchOptions, type ResearchResult } from "./research.js";
 import {
@@ -192,7 +193,24 @@ export function createHarness(config: HarnessConfig): Harness {
     getDesignProvider: () => simulationProvider ?? provider,
     maxTurns,
   });
-  const lessons = createLessonsPipeline({ getProvider: () => provider });
+  // Loaded on first use, so a harness without doc-extraction-util installed still works for
+  // everything else; only lessons() then fails, with an error that says what to install.
+  let lessonsPipeline: Promise<(input: LessonsInput, options?: LessonsOptions) => Promise<LessonsResult>> | undefined;
+  function lessons(input: LessonsInput, options?: LessonsOptions): Promise<LessonsResult> {
+    lessonsPipeline ??= import("./lessons.js").then(
+      ({ createLessonsPipeline }) => createLessonsPipeline({ getProvider: () => provider }),
+      (error: unknown) => {
+        lessonsPipeline = undefined;
+        const missing =
+          (error as { code?: string })?.code === "ERR_MODULE_NOT_FOUND" &&
+          String((error as Error).message).includes("doc-extraction-util");
+        throw missing
+          ? new Error("harness.lessons() needs the doc-extraction-util package; install it alongside study-harness.", { cause: error })
+          : error;
+      },
+    );
+    return lessonsPipeline.then((run) => run(input, options));
+  }
   // A drawing, like the lesson page: use the design model when there is one.
   const thumbnail = createThumbnailPipeline({ getProvider: () => simulationProvider ?? provider });
 

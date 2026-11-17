@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { createHarness, LessonsTaskError, type LessonsCache, type LessonsEvent } from "../src/index.js";
+import { createHarness } from "../src/index.js";
+import { LessonsTaskError, type LessonsCache, type LessonsEvent } from "../src/lessons.js";
 import { registerProvider } from "../src/providers/registry.js";
 import type { ProviderRequest, ProviderResponse, ToolCall } from "../src/types.js";
 

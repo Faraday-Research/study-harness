@@ -41,23 +41,8 @@ export {
   type EduTrack,
 } from "./eduPipeline.js";
 export type { ResearchReport } from "./researchReport.js";
-export {
-  answerKey,
-  fileCache,
-  LESSONS_FILES,
-  LessonsTaskError,
-  saveLessons,
-  type LessonPlan,
-  type LessonsCache,
-  type LessonsEvent,
-  type LessonsInput,
-  type LessonsOptions,
-  type LessonsPlannerOptions,
-  type LessonsResult,
-  type LessonsSource,
-  type PlanProgress,
-  type PropertyGraph,
-} from "./lessons.js";
+// The textbook → lessons API (saveLessons, fileCache, LessonPlan, …) is in "study-harness/lessons",
+// so importing the harness doesn't load doc-extraction-util. harness.lessons() loads it on first use.
 export type {
   InteractiveTheme,
   LessonCheck,
